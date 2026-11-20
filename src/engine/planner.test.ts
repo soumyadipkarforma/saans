@@ -160,10 +160,10 @@ describe('routine', () => {
     expect(flat(run(walkOnly, GOOD, null))[0]).toMatchObject({ startHour: 17, adviceKey: 'goAt' });
     const kept: Profile = {
       household: [adult],
-      activities: [{ ...elderWalk, participants: [0], startHour: 7 }],
+      activities: [{ ...elderWalk, participants: [0], startHour: 10 }],
     };
     const q = run(kept, SEVERE, null);
-    expect(flat(q)[0]).toMatchObject({ startHour: 7, adviceKey: 'moveIndoors' });
+    expect(flat(q)[0]).toMatchObject({ startHour: 10, adviceKey: 'moveIndoors' });
     expect(q.lowEmissionRoutine[0]?.period).toBe('morning');
   });
   it('falls back to the kept hour when the forecast has no usable window', () => {
@@ -317,21 +317,51 @@ describe('remaining hours today', () => {
     const stay = flat(at(kid, '16:00', SEVERE))[0];
     expect(stay).toMatchObject({ adviceKey: 'stayIndoorsUntil', startHour: 16 });
   });
-  it('still uses a window that starts exactly now', () => {
+  it('uses a window that starts in the current hour (13:10 -> 13)', () => {
     expect(flat(at(walker, '13:10', airOf(110)))[0]).toMatchObject({
       startHour: 13,
       adviceKey: 'goAt',
     });
   });
-  it('with no window left (21:30) falls back to the no-forecast behaviour', () => {
-    expect(flat(at(walker, '21:30', airOf(200)))[0]).toMatchObject({
-      startHour: 17,
-      adviceKey: 'moveIndoors',
-      params: { band: 'veryPoor', hour: 17 },
-    });
+  it('no window left at 21:30: skipToday / lateInDay in the evening block', () => {
+    const p = at(walker, '21:30', airOf(200));
+    expect(flat(p)).toEqual([
+      {
+        activityIndex: 0,
+        startHour: 21,
+        adviceKey: 'skipToday',
+        reasonKey: 'lateInDay',
+        params: { hour: 21 },
+      },
+    ]);
+    expect(p.lowEmissionRoutine.map((b) => b.period)).toEqual(['evening']);
     expect(flat(at(kid, '21:30', SEVERE))[0]).toMatchObject({
       startHour: 21,
       params: { hour: 'later' },
     });
+  });
+  it('no forecast: a walk with no startHour is pushed to the current hour (18:00 -> 18)', () => {
+    const p = buildDayPlan({ profile: walker, air: GOOD, forecast: null, now: `${DAY}T18:00` });
+    expect(flat(p)[0]).toMatchObject({ startHour: 18, adviceKey: 'goAt' });
+  });
+  it('no forecast: a later startHour is kept (19 at 10:00 -> 19); 22 is skipped', () => {
+    const at19: Profile = {
+      household: [adult],
+      activities: [{ ...elderWalk, participants: [0], startHour: 19 }],
+    };
+    const early = `${DAY}T10:00`;
+    expect(
+      flat(buildDayPlan({ profile: at19, air: GOOD, forecast: null, now: early }))[0],
+    ).toMatchObject({
+      startHour: 19,
+      adviceKey: 'goAt',
+    });
+    const at22: Profile = {
+      household: [adult],
+      activities: [{ ...elderWalk, participants: [0], startHour: 22 }],
+    };
+    expect(
+      flat(buildDayPlan({ profile: at22, air: GOOD, forecast: null, now: early }))[0]?.adviceKey,
+    ).toBe('skipToday');
   });
 });

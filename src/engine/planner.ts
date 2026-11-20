@@ -76,14 +76,25 @@ function routine(
 ): PlanBlock[] {
   const items: PlanItem[] = [];
   const [firstHour, toHour] = REASONABLE_HOURS;
-  const fromHour = Math.max(firstHour, nowHour); // never recommend an hour that has passed
+  const fromHour = Math.max(firstHour, nowHour); // windows and kept hours are never in the past
   const best = forecast ? bestWindow(forecast.hours, { fromHour, toHour, lengthH: 1, day }) : null;
 
   profile.activities.forEach((a, i) => {
     const members = a.participants.flatMap((p) => profile.household[p] ?? []);
     const limit: Sensitivity = members.some(isSensitive) ? 'sensitive' : 'general';
     if (FLEXIBLE_KINDS.has(a.kind)) {
-      const hour = best?.startHour ?? a.startHour ?? DEFAULT_HOUR[a.kind];
+      const hour = best?.startHour ?? Math.max(a.startHour ?? DEFAULT_HOUR[a.kind], nowHour);
+      if (hour >= toHour) {
+        // a 1-h activity must end by toHour; nothing sensible is left today
+        items.push({
+          activityIndex: i,
+          startHour: nowHour,
+          adviceKey: 'skipToday',
+          reasonKey: 'lateInDay',
+          params: { hour: nowHour },
+        });
+        return;
+      }
       const pm25 = best?.meanPm25 ?? air.pm25;
       const band = best ? bandFor(subIndex('pm25', best.meanPm25)) : air.band;
       const advice = exceeds(band, MAX_OUTDOOR_BAND[limit]) ? 'moveIndoors' : 'goAt';
