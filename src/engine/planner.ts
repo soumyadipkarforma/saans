@@ -76,7 +76,7 @@ function routine(
 ): PlanBlock[] {
   const items: PlanItem[] = [];
   const [firstHour, toHour] = REASONABLE_HOURS;
-  const fromHour = Math.max(firstHour, nowHour); // windows and kept hours are never in the past
+  const fromHour = Math.max(firstHour, nowHour); // only bounds the forecast window search; kept flexible hours are clamped below
   const best = forecast ? bestWindow(forecast.hours, { fromHour, toHour, lengthH: 1, day }) : null;
 
   profile.activities.forEach((a, i) => {
@@ -101,7 +101,9 @@ function routine(
       items.push(item(i, hour, advice, band, pm25, hour));
     } else {
       const hour = a.startHour ?? DEFAULT_HOUR[a.kind];
-      const advice = bandAtLeast(air.band, MASK_FROM_BAND) ? 'mask' : 'goAhead';
+      // a fixed activity keeps its real hour; if that hour has passed the advice is for tomorrow
+      const base = bandAtLeast(air.band, MASK_FROM_BAND) ? 'mask' : 'goAhead';
+      const advice = hour < nowHour ? `${base}Tomorrow` : base;
       items.push(item(i, hour, advice, air.band, air.pm25, hour));
     }
   });

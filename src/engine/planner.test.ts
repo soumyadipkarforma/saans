@@ -364,4 +364,32 @@ describe('remaining hours today', () => {
       flat(buildDayPlan({ profile: at22, air: GOOD, forecast: null, now: early }))[0]?.adviceKey,
     ).toBe('skipToday');
   });
+  it('fixed activities: a passed hour becomes tomorrow advice, keeping its period and swap', () => {
+    const veryPoor = airOf(200);
+    const prof: Profile = { household: [adult], activities: [commute] };
+    const p = buildDayPlan({ profile: prof, air: veryPoor, forecast: null, now: `${DAY}T14:00` });
+    expect(flat(p)[0]).toMatchObject({
+      startHour: 9,
+      adviceKey: 'maskTomorrow',
+      params: { hour: 9, band: 'veryPoor' },
+    });
+    expect(p.lowEmissionRoutine[0]?.period).toBe('morning');
+    expect(p.sustainableSwaps).toHaveLength(1);
+    const good = buildDayPlan({ profile: prof, air: GOOD, forecast: null, now: `${DAY}T14:00` });
+    expect(flat(good)[0]?.adviceKey).toBe('goAheadTomorrow');
+  });
+  it('fixed activities: a later hour, or the current hour, stays today', () => {
+    const evening: Profile = {
+      household: [adult],
+      activities: [{ ...commute, startHour: 18 }],
+    };
+    const at = (profile: Profile, hhmm: string) =>
+      flat(buildDayPlan({ profile, air: airOf(200), forecast: null, now: `${DAY}T${hhmm}` }))[0];
+    expect(at(evening, '14:00')?.adviceKey).toBe('mask');
+    const school: Profile = {
+      household: [child],
+      activities: [{ kind: 'schoolRun', participants: [0], flexible: false }],
+    };
+    expect(at(school, '08:00')).toMatchObject({ startHour: 8, adviceKey: 'mask' });
+  });
 });
