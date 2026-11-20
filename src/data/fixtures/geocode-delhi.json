@@ -1,0 +1,60 @@
+{
+  "results": [
+    {
+      "id": 1273294,
+      "name": "Delhi",
+      "latitude": 28.66667,
+      "longitude": 77.21667,
+      "elevation": 216.0,
+      "feature_code": "PPLC",
+      "country_code": "IN",
+      "admin1_id": 1261157,
+      "timezone": "Asia/Kolkata",
+      "population": 10927986,
+      "country_id": 1269750,
+      "country": "India",
+      "admin1": "Delhi"
+    },
+    {
+      "id": 1273295,
+      "name": "Delhi",
+      "latitude": 28.65195,
+      "longitude": 77.23149,
+      "elevation": 220.0,
+      "feature_code": "PPL",
+      "country_code": "IN",
+      "admin1_id": 1261157,
+      "timezone": "Asia/Kolkata",
+      "country_id": 1269750,
+      "country": "India",
+      "admin1": "Delhi"
+    },
+    {
+      "id": 5106292,
+      "name": "Delhi",
+      "latitude": 42.5,
+      "longitude": -74.6,
+      "feature_code": "PPL",
+      "country_code": "US",
+      "admin1_id": 5128638,
+      "timezone": "America/New_York",
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "New York"
+    },
+    {
+      "id": 1264445,
+      "name": "Delhi Cantonment",
+      "latitude": 28.5878,
+      "longitude": 77.1534,
+      "feature_code": "PPL",
+      "country_code": "IN",
+      "admin1_id": 1261157,
+      "timezone": "Asia/Kolkata",
+      "country_id": 1269750,
+      "country": "India",
+      "admin1": "Delhi"
+    }
+  ],
+  "generationtime_ms": 0.9
+}
