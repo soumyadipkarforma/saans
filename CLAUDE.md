@@ -9,7 +9,9 @@ Top the leaderboard. Round 1: automated score on code quality, security, efficie
 ## Non-negotiable rules
 - The LLM never produces AQI, pollutant, forecast, or impact numbers. Numbers come from live APIs or engine/ only.
 - Show data source and timestamp on every reading.
-- API keys stay on the server. Never commit secrets.
+- Static app, no backend (spec Amendment A). Data from Open-Meteo only. The user's own Gemini key lives in sessionStorage only. Never commit secrets.
+- Everything works without a Gemini key (degraded mode with template text).
+- Work on `main`. Use cheap, scoped subagents (Haiku for mechanical tasks, Sonnet for judgment and reviews, Opus only for the final review).
 - No medical advice (no diagnosis, medicines, or doses).
 - Typing and tap-chips always work as an alternative to voice.
 - engine/ functions are pure and fully unit-tested before they count as done.

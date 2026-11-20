@@ -2,6 +2,18 @@
 
 Voice-first smog assistant. Sections 1–9 of the master prompt, saved as the source of truth.
 
+## Amendment A — 2026-11-20 (supersedes anything below that conflicts)
+
+Decided by the author after a CORS check (OpenAQ v3 blocks browser preflight with its key header; data.gov.in sends no CORS header; Open-Meteo and the Gemini API allow browser calls):
+
+1. **No backend.** Saans is a static single-page app. Every module under "Backend" in §6 moves into the browser (`src/engine`, `src/data`, `src/llm`). No `/api/*` routes, no Express, no server-side rate limit.
+2. **Data: Open-Meteo only.** Current air quality, hourly forecast and place search all come from Open-Meteo (CAMS model). CPCB and OpenAQ are dropped. Every reading is labelled "modelled estimate (CAMS via Open-Meteo)" with its timestamp. The AQI number is still computed with CPCB National AQI breakpoints in `engine/aqi.ts`, from the mean of the last 24 hourly PM values (CPCB's averaging period), so the number follows the Indian scale.
+3. **Gemini: bring your own key.** The user pastes their own Gemini API key (link to Google AI Studio). It is held in `sessionStorage` only (gone when the tab closes), never logged, never sent anywhere except `generativelanguage.googleapis.com`, with a visible "Remove key" button. Calls go from the browser via the official `@google/genai` SDK.
+4. **No key = degraded mode, fully usable.** Without a key, Saans still geocodes, fetches live air data, builds the engine plan and shows template replies and chips. Demo families work without a key. This is what Round 2 judges see if they don't add a key.
+5. **Security in a static app:** strict CSP (`connect-src` limited to Open-Meteo hosts and the Gemini API), zod validation of every API response and every user input, length limits, a client-side turn limit to protect the user's quota, no `dangerouslySetInnerHTML`, `npm audit` clean.
+6. **Deploy:** Firebase Hosting (Google, static, security headers set in `firebase.json`). README documents `firebase deploy`.
+7. The golden rule, the no-medical-advice rule, voice, Hindi, demo families, accessibility and testing targets are unchanged.
+
 ## 1. Context: the competition
 
 **Event:** Hack2skill PromptWars Virtual, Challenge 6, part of Google for Developers "Build with AI". Solo participant, India only, 14-day build window.
