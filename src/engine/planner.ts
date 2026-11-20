@@ -75,7 +75,8 @@ function routine(
   nowHour: number,
 ): PlanBlock[] {
   const items: PlanItem[] = [];
-  const [fromHour, toHour] = REASONABLE_HOURS;
+  const [firstHour, toHour] = REASONABLE_HOURS;
+  const fromHour = Math.max(firstHour, nowHour); // never recommend an hour that has passed
   const best = forecast ? bestWindow(forecast.hours, { fromHour, toHour, lengthH: 1, day }) : null;
 
   profile.activities.forEach((a, i) => {

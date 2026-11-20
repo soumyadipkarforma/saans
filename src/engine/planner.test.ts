@@ -94,12 +94,34 @@ describe('personalisation (same Very Poor reading)', () => {
     expect(keys.filter((k) => k === 'mask')).toHaveLength(2);
     expect(flat(a).map((i) => i.adviceKey)).not.toContain('moveIndoors');
   });
-  it('swap ranking differs: the commuter ranks by CO2, the child school run by exposure', () => {
+  it('swaps differ: commuter gets only the commute swap, family also gets the child school run', () => {
     expect(a.sustainableSwaps.map((s) => [s.activityIndex, s.toMode])).toEqual([[0, 'metro']]);
-    const second = b.sustainableSwaps.map((s) => [s.activityIndex, s.toMode]);
-    expect(second.length).toBe(2);
-    expect(second[0]).not.toEqual(second[1]);
-    expect(b.sustainableSwaps.length).toBeGreaterThan(a.sustainableSwaps.length);
+    expect(b.sustainableSwaps.map((s) => [s.activityIndex, s.toMode])).toEqual([
+      [0, 'metro'],
+      [1, 'metro'],
+    ]);
+  });
+  it('exposure ranking and CO2 ranking diverge: child gets metro, adult gets walk, same trip and air', () => {
+    const trip = (m: Member) =>
+      buildDayPlan({
+        profile: {
+          household: [m],
+          activities: [
+            {
+              kind: 'errand',
+              distanceKm: 1.5,
+              mode: 'petrolCar',
+              participants: [0],
+              flexible: true,
+            },
+          ],
+        },
+        air: airOf(70),
+        forecast: null,
+        now: NOW,
+      }).sustainableSwaps.map((s) => s.toMode);
+    expect(trip(child)).toEqual(['metro']);
+    expect(trip(adult)).toEqual(['walk']);
   });
   it('validates against DayPlanSchema and has only finite numbers', () => {
     for (const p of [a, b]) {
@@ -279,5 +301,37 @@ describe('swaps', () => {
     expect(exposure([child, asthmaticElder])).toBe(childOnly);
     expect(exposure([asthmaticElder, adult])).toBe(exposure([asthmaticElder]));
     expect(childOnly).not.toBe(exposure([adult]));
+  });
+});
+
+describe('remaining hours today', () => {
+  const walker: Profile = { household: [adult], activities: [{ ...elderWalk, participants: [0] }] };
+  const kid: Profile = { household: [child], activities: [] };
+  const at = (profile: Profile, hhmm: string, air: AirReading) =>
+    buildDayPlan({ profile, air, forecast: FC, now: `${DAY}T${hhmm}` });
+
+  it('never recommends an hour that has already passed (16:00 walk is not sent to 13:00)', () => {
+    const item = flat(at(walker, '16:00', airOf(110)))[0];
+    expect(item?.startHour).toBeGreaterThanOrEqual(16);
+    expect(item?.params.hour).toBe(item?.startHour);
+    const stay = flat(at(kid, '16:00', SEVERE))[0];
+    expect(stay).toMatchObject({ adviceKey: 'stayIndoorsUntil', startHour: 16 });
+  });
+  it('still uses a window that starts exactly now', () => {
+    expect(flat(at(walker, '13:10', airOf(110)))[0]).toMatchObject({
+      startHour: 13,
+      adviceKey: 'goAt',
+    });
+  });
+  it('with no window left (21:30) falls back to the no-forecast behaviour', () => {
+    expect(flat(at(walker, '21:30', airOf(200)))[0]).toMatchObject({
+      startHour: 17,
+      adviceKey: 'moveIndoors',
+      params: { band: 'veryPoor', hour: 17 },
+    });
+    expect(flat(at(kid, '21:30', SEVERE))[0]).toMatchObject({
+      startHour: 21,
+      params: { hour: 'later' },
+    });
   });
 });

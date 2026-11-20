@@ -1,5 +1,4 @@
-// Set before anything runs; the engine never reads the clock, and the first test proves the override took effect.
-process.env.TZ = 'UTC';
+// TZ=UTC comes from vitest config test.env; the first test proves it is in effect.
 import { describe, expect, it } from 'vitest';
 import type { ForecastHour } from '../types';
 import { bestWindow, worstWindow } from './forecast';
@@ -57,7 +56,7 @@ describe('bestWindow / worstWindow', () => {
     const other = hoursOf(() => 1, '2026-11-21');
     const today = hoursOf((h) => (h === 11 ? 5 : 50));
     expect(bestWindow([...other, ...today], opts)).toEqual({ startHour: 10, meanPm25: 27.5 });
-    // a time string with a UTC offset-looking suffix is still read by its wall-clock hour
+    // only the wall-clock hour text matters; the data carries no offset
     const iso = [
       { time: `${DAY}T10:00`, pm25: 9 },
       { time: `${DAY}T11:00`, pm25: 9 },
