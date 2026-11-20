@@ -1,18 +1,19 @@
 # Saans
 
-Voice-first smog assistant for Indian families. Ask by voice or tap, in English or Hindi, what the air is like today and what your family can do about it.
+Tell Saans who lives in your home and what your day looks like. It gives you a smog-safe plan for today, and every suggestion shows how much pollution it keeps out of your lungs and out of the air.
 
 Entry for Hack2skill PromptWars Virtual, Challenge 6 ("Urban Air Quality Assistant").
 
-## Brief to feature
+## Brief → feature mapping
 
-| Brief requirement                  | Feature                                                                |
-| ---------------------------------- | ---------------------------------------------------------------------- |
-| Live air quality for your location | CPCB National AQI from CAMS modelled PM2.5 and PM10 via Open-Meteo     |
-| Plain-language advice              | Assistant replies from fixed templates; the LLM never produces numbers |
-| Voice and text input               | Speech input where supported; typing and tap chips always work         |
-| Hindi and English                  | `en` and `hi` UI and speech                                            |
-| Day plan for the family            | `lowEmissionRoutine`, `sustainableSwaps`, `indoorAirTips`, `impact`    |
+| Brief requirement              | Saans feature                                                                                                    |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Families and communities       | Household profile gathered by conversation: children, elders, anyone with asthma or breathing trouble, commuters |
+| Tailored to location           | Live AQI for the user's city or area (any Indian city), by voice, typing, or browser geolocation                 |
+| Low-emission daily routines    | Today's plan in morning / afternoon / evening blocks: when to go out, when to stay in, how to travel             |
+| Indoor air quality hacks       | At home card: when to open or close windows, purifier timing, cooking and incense tips, tied to forecast hours   |
+| Sustainable alternatives       | Swaps: metro or bus instead of cab, carpooling, combining trips, walking short hops in cleaner hours             |
+| Clearly explains direct impact | Each swap shows two numbers: less PM2.5 inhaled and kg CO₂ saved, plus a one-line "why" written by Gemini        |
 
 ## Setup
 
