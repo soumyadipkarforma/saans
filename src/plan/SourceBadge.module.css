@@ -1,0 +1,21 @@
+.badge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.source {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.stale {
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+}

@@ -54,6 +54,12 @@
   padding: 1rem;
 }
 
+.plan {
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+}
+
 .muted {
   color: var(--color-muted);
 }

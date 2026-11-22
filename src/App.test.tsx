@@ -40,6 +40,13 @@ describe('App shell', () => {
     expect(within(footer).getByText(/Not medical advice/)).toBeInTheDocument();
   });
 
+  it('shows the sample air reading in the plan column', () => {
+    render(<App />);
+    const region = screen.getByRole('region', { name: 'Air in Delhi' });
+    expect(within(region).getByText('223')).toBeInTheDocument();
+    expect(within(region).getByText('updated 12 min ago')).toBeInTheDocument();
+  });
+
   it('language toggle switches the page language and the html lang attribute', async () => {
     const user = userEvent.setup();
     render(<App />);

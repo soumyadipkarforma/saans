@@ -1,0 +1,71 @@
+/*
+ * Band chips: each fill has an ink colour on top of it. Ratios are recorded in styles/tokens.css.
+ * The band name is always printed, so colour is never the only signal.
+ */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.band {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.band[data-band='good'] {
+  background: var(--aqi-good);
+  color: var(--aqi-good-ink);
+}
+
+.band[data-band='satisfactory'] {
+  background: var(--aqi-satisfactory);
+  color: var(--aqi-satisfactory-ink);
+}
+
+.band[data-band='moderate'] {
+  background: var(--aqi-moderate);
+  color: var(--aqi-moderate-ink);
+}
+
+.band[data-band='poor'] {
+  background: var(--aqi-poor);
+  color: var(--aqi-poor-ink);
+}
+
+.band[data-band='veryPoor'] {
+  background: var(--aqi-veryPoor);
+  color: var(--aqi-veryPoor-ink);
+}
+
+.band[data-band='severe'] {
+  background: var(--aqi-severe);
+  color: var(--aqi-severe-ink);
+}
+
+.muted {
+  margin: 0.5rem 0 0;
+  color: var(--color-muted);
+}

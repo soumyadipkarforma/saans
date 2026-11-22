@@ -1,10 +1,28 @@
 import pkg from '../package.json';
 import styles from './App.module.css';
 import { useLang, useT } from './i18n/i18n';
+import { AqiCard } from './plan/AqiCard';
+import type { AirReading } from './types';
 
 // placeholder: replace with the repository URL before launch
 const REPO_URL = 'https://github.com/';
 const LANGS = ['en', 'hi'] as const;
+
+// shortcut: sample data until the assistant (Task 14+) is wired
+const SAMPLE_NOW = new Date('2026-11-22T02:30:00Z'); // 08:00 IST
+const SAMPLE_AIR: AirReading = {
+  aqi: 223,
+  band: 'poor',
+  pm25: 150,
+  pm10: 210,
+  dominantPollutant: 'pm25',
+  source: 'CAMS via Open-Meteo',
+  stationOrGrid: '28.61,77.21',
+  observedAt: SAMPLE_NOW.toISOString(),
+  fetchedAt: new Date(SAMPLE_NOW.getTime() - 12 * 60_000).toISOString(),
+  isModelled: true,
+  isStale: false,
+};
 
 function LanguageToggle() {
   const { lang, setLang } = useLang();
@@ -42,6 +60,9 @@ export function App() {
           <h2 id="chat-heading">{tr('chat.title')}</h2>
           <p className={styles.muted}>{tr('chat.placeholder')}</p>
         </section>
+        <div className={styles.plan}>
+          <AqiCard air={SAMPLE_AIR} status="ready" now={SAMPLE_NOW} city="Delhi" />
+        </div>
       </main>
       <footer className={styles.footer}>
         <p>{tr('footer.airData')}</p>
