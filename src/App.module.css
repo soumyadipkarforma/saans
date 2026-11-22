@@ -60,16 +60,6 @@
   gap: 1.5rem;
 }
 
-/* Visible marker until the live reading is wired; the text carries the meaning, not the colour. */
-.sampleNote {
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  border: 2px dashed var(--color-text);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  font-weight: 700;
-}
-
 .muted {
   color: var(--color-muted);
 }

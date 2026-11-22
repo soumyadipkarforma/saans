@@ -1,7 +1,10 @@
 import { act, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
+import type { Assistant } from './chat/useConversation';
+import { buildDayPlan } from './engine/planner';
+import type { AirReading, Profile } from './types';
 import { useLang } from './i18n/i18n';
 
 afterEach(() => {
@@ -13,19 +16,19 @@ afterEach(() => {
 
 describe('App shell', () => {
   it('shows the app name as the page heading', () => {
-    render(<App />);
+    render(<App assistant={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Saans', level: 1 })).toBeInTheDocument();
   });
 
   it('has header, main and footer landmarks', () => {
-    render(<App />);
+    render(<App assistant={vi.fn()} />);
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.getByRole('main')).toBeInTheDocument();
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
   });
 
   it('offers a skip link to main content', () => {
-    render(<App />);
+    render(<App assistant={vi.fn()} />);
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute(
       'href',
       '#main',
@@ -33,7 +36,7 @@ describe('App shell', () => {
   });
 
   it('shows the air attribution and the not-medical-advice note in the footer', () => {
-    render(<App />);
+    render(<App assistant={vi.fn()} />);
     const footer = screen.getByRole('contentinfo');
     expect(
       within(footer).getByText('Air data: CAMS via Open-Meteo (modelled)'),
@@ -41,41 +44,69 @@ describe('App shell', () => {
     expect(within(footer).getByText(/Not medical advice/)).toBeInTheDocument();
   });
 
-  it('shows the sample air reading in the plan column', () => {
-    render(<App />);
-    const region = screen.getByRole('region', { name: 'Air in Delhi' });
-    expect(within(region).getByText('223')).toBeInTheDocument();
-    expect(within(region).getByText('updated 12 min ago')).toBeInTheDocument();
+  it('starts idle: welcome message and an empty air card, no sample data', () => {
+    render(<App assistant={vi.fn()} />);
+    expect(within(screen.getByRole('log')).getByText(/Tell me your city/)).toBeInTheDocument();
+    expect(screen.getByText('Enter a place to see its air quality.')).toBeInTheDocument();
+    expect(screen.queryByText(/Sample plan/)).not.toBeInTheDocument();
   });
 
-  it('loads the day plan lazily from the sample profile', async () => {
-    render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Your day plan' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Morning' })).toBeInTheDocument();
-    expect(screen.getByText('Metro instead of petrol car', { exact: false })).toBeInTheDocument();
-  });
-
-  it('marks the plan and reading as sample data', () => {
-    render(<App />);
-    expect(screen.getByText('Sample plan — not live data')).toBeInTheDocument();
-  });
-
-  it('marks the sample note in Hindi too', async () => {
+  it('shows the welcome in Hindi too', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(<App assistant={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: 'हिंदी' }));
-    expect(screen.getByText('नमूना योजना — लाइव डेटा नहीं')).toBeInTheDocument();
+    expect(within(screen.getByRole('log')).getByText(/अपना शहर/)).toBeInTheDocument();
+  });
+
+  it('sends a message, shows the reply in the log, the live reading and the plan', async () => {
+    const user = userEvent.setup();
+    const profile: Profile = {
+      location: { city: 'Delhi', lat: 28.61, lon: 77.21 },
+      household: [{ group: 'adult', respiratory: false, pregnant: false }],
+      activities: [],
+    };
+    const air: AirReading = {
+      aqi: 223,
+      band: 'poor',
+      pm25: 150,
+      pm10: 210,
+      dominantPollutant: 'pm25',
+      source: 'CAMS via Open-Meteo',
+      stationOrGrid: 'x',
+      observedAt: new Date().toISOString(),
+      fetchedAt: new Date().toISOString(),
+      isModelled: true,
+      isStale: false,
+    };
+    const assistant = vi.fn<Assistant>().mockResolvedValue({
+      reply: 'Air in Delhi is Poor, AQI 223.',
+      chips: ['Car'],
+      profile,
+      air,
+      forecast: null,
+      plan: buildDayPlan({ profile, air, forecast: null, now: '2026-11-22T08:00' }),
+      candidates: [],
+      degraded: true,
+      guarded: false,
+    });
+    render(<App assistant={assistant} />);
+    await user.type(screen.getByLabelText('Your message'), 'Delhi{Enter}');
+    expect(await within(screen.getByRole('log')).findByText(/AQI 223/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Air in Delhi' })).toHaveTextContent('223');
+    expect(await screen.findByRole('heading', { name: 'Your day plan' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Car' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Your message')).toHaveFocus();
   });
 
   it('marks each language button with its own lang attribute', () => {
-    render(<App />);
+    render(<App assistant={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('lang', 'en');
     expect(screen.getByRole('button', { name: 'हिंदी' })).toHaveAttribute('lang', 'hi');
   });
 
   it('language toggle switches the page language and the html lang attribute', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(<App assistant={vi.fn()} />);
     const english = screen.getByRole('button', { name: 'English' });
     const hindi = screen.getByRole('button', { name: 'हिंदी' });
     expect(english).toHaveAttribute('aria-pressed', 'true');

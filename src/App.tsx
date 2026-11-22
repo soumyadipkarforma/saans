@@ -1,66 +1,24 @@
 import { lazy, Suspense } from 'react';
 import pkg from '../package.json';
 import styles from './App.module.css';
-import { buildDayPlan } from './engine/planner';
+import { ChatInput } from './chat/ChatInput';
+import { Chips } from './chat/Chips';
+import { MessageList } from './chat/MessageList';
+import { useConversation, type Assistant } from './chat/useConversation';
+import { createAirService } from './data/airService';
+import { searchIndia } from './data/geocode';
 import { useLang, useT } from './i18n/i18n';
-import { AqiCard } from './plan/AqiCard';
-import type { AirReading, Profile } from './types';
+import { createDegradedAssistant } from './llm/degradedAssistant';
+import { AqiCard, type AirStatus } from './plan/AqiCard';
 
 // The plan screen is only needed once the plan column is shown, so it loads on demand.
 const PlanView = lazy(() => import('./plan/PlanView'));
 
 // placeholder: replace with the repository URL before launch
 const REPO_URL = 'https://github.com/';
+// The one place the assistant is chosen; a later task swaps in the Gemini-backed one.
+const defaultAssistant = createDegradedAssistant({ geocode: searchIndia, air: createAirService() });
 const LANGS = ['en', 'hi'] as const;
-
-// shortcut: sample data until the assistant (Task 14+) is wired
-const SAMPLE_NOW = new Date('2026-11-22T02:30:00Z'); // 08:00 IST
-const SAMPLE_AIR: AirReading = {
-  aqi: 223,
-  band: 'poor',
-  pm25: 150,
-  pm10: 210,
-  dominantPollutant: 'pm25',
-  source: 'CAMS via Open-Meteo',
-  stationOrGrid: '28.61,77.21',
-  observedAt: SAMPLE_NOW.toISOString(),
-  fetchedAt: new Date(SAMPLE_NOW.getTime() - 12 * 60_000).toISOString(),
-  isModelled: true,
-  isStale: false,
-};
-const SAMPLE_PROFILE: Profile = {
-  location: { city: 'Delhi', lat: 28.61, lon: 77.21 },
-  household: [
-    { group: 'adult', respiratory: false, pregnant: false },
-    { group: 'child', age: 7, respiratory: false, pregnant: false },
-  ],
-  activities: [
-    {
-      kind: 'commute',
-      startHour: 8,
-      durationMin: 40,
-      distanceKm: 12,
-      mode: 'petrolCar',
-      participants: [0],
-      flexible: false,
-    },
-    {
-      kind: 'schoolRun',
-      startHour: 8,
-      durationMin: 20,
-      distanceKm: 3,
-      mode: 'twoWheeler',
-      participants: [1],
-      flexible: false,
-    },
-  ],
-};
-const SAMPLE_PLAN = buildDayPlan({
-  profile: SAMPLE_PROFILE,
-  air: SAMPLE_AIR,
-  forecast: null,
-  now: '2026-11-22T08:00:00',
-});
 
 function LanguageToggle() {
   const { lang, setLang } = useLang();
@@ -83,8 +41,22 @@ function LanguageToggle() {
   );
 }
 
-export function App() {
+export function App({ assistant = defaultAssistant }: { assistant?: Assistant }) {
   const tr = useT();
+  const { messages, turn, turnAt, status, send } = useConversation(assistant);
+  const thinking = status === 'thinking';
+
+  let airStatus: AirStatus = 'idle';
+  if (thinking) airStatus = 'loading';
+  else if (turn?.air) airStatus = 'ready';
+  else if (turn?.notice === 'airUnavailable') airStatus = 'unavailable';
+
+  function pick(label: string) {
+    void send(label);
+    // The chip that was clicked is replaced by the next set, so hand focus back to the input.
+    document.getElementById('chat-input')?.focus();
+  }
+
   return (
     <>
       <a className="skip-link" href="#main">
@@ -97,16 +69,22 @@ export function App() {
       <main id="main" tabIndex={-1} className={styles.layout}>
         <section aria-labelledby="chat-heading" className={styles.card}>
           <h2 id="chat-heading">{tr('chat.title')}</h2>
-          <p className={styles.muted}>{tr('chat.placeholder')}</p>
+          <MessageList messages={messages} thinking={thinking} />
+          <Chips items={turn?.chips ?? []} onPick={pick} />
+          <ChatInput onSend={(text) => void send(text)} busy={thinking} />
         </section>
         <div className={styles.plan}>
-          <p className={styles.sampleNote} role="note">
-            {tr('sample.note')}
-          </p>
-          <AqiCard air={SAMPLE_AIR} status="ready" now={SAMPLE_NOW} city="Delhi" />
-          <Suspense fallback={<p>{tr('plan.loading')}</p>}>
-            <PlanView plan={SAMPLE_PLAN} activities={SAMPLE_PROFILE.activities} />
-          </Suspense>
+          <AqiCard
+            air={turn?.air ?? null}
+            status={airStatus}
+            now={turnAt}
+            city={turn?.profile.location?.city}
+          />
+          {turn?.plan && (
+            <Suspense fallback={<p>{tr('plan.loading')}</p>}>
+              <PlanView plan={turn.plan} activities={turn.profile.activities} />
+            </Suspense>
+          )}
         </div>
       </main>
       <footer className={styles.footer}>

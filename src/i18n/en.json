@@ -116,6 +116,5 @@
   "chip.wfh": "What if I work from home?",
   "chip.childPlay": "Can my child play outside at 5?",
   "chip.explain": "Explain the AQI",
-  "sample.note": "Sample plan — not live data",
-  "chat.placeholder": "The assistant will appear here."
+  "reply.airSensitive": "Air in {city} is {band}, AQI {aqi}. Someone at home is sensitive, so I kept the advice cautious; source: CAMS via Open-Meteo, a modelled estimate."
 }

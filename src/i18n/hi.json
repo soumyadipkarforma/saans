@@ -116,6 +116,5 @@
   "chip.wfh": "घर से काम करूँ तो?",
   "chip.childPlay": "क्या मेरा बच्चा 5 बजे बाहर खेल सकता है?",
   "chip.explain": "AQI समझाइए",
-  "sample.note": "नमूना योजना — लाइव डेटा नहीं",
-  "chat.placeholder": "सहायक यहाँ दिखेगा।"
+  "reply.airSensitive": "{city} में हवा {band} है, AQI {aqi}। घर में कोई संवेदनशील है, इसलिए सलाह सावधानी वाली रखी है; स्रोत: CAMS via Open-Meteo, यह एक मॉडल अनुमान है।"
 }
