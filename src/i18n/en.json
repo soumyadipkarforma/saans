@@ -1,0 +1,13 @@
+{
+  "app.name": "Saans",
+  "skip.toMain": "Skip to main content",
+  "header.language": "Language",
+  "lang.en": "English",
+  "lang.hi": "हिंदी",
+  "chat.title": "Ask Saans",
+  "chat.placeholder": "The assistant will appear here.",
+  "footer.airData": "Air data: CAMS via Open-Meteo (modelled)",
+  "footer.version": "Version {version}",
+  "footer.notMedical": "Not medical advice. For a health condition, follow your doctor's advice.",
+  "footer.github": "Source code on GitHub"
+}

@@ -1,0 +1,38 @@
+/*
+ * Design tokens. Every AQI band is a filled chip; the ink colour sits on that fill.
+ * Contrast ratios (WCAG 2.1, text vs fill), checked with the relative-luminance formula:
+ *   good          #0f3d1f on #8fd19e  6.90:1
+ *   satisfactory  #2b3300 on #d4e157  9.33:1
+ *   moderate      #3d2e00 on #ffd54f  9.36:1
+ *   poor          #4a1d00 on #ff9e57  7.01:1
+ *   veryPoor      #ffffff on #b4232c  6.53:1
+ *   severe        #ffffff on #5c0a12 13.93:1
+ * Page text #1c1c1c on #fbfaf6 16.32:1; muted #4a4f57 on #fbfaf6 7.89:1; link #0b57a4 on #fbfaf6 6.90:1.
+ */
+:root {
+  --color-bg: #fbfaf6;
+  --color-surface: #ffffff;
+  --color-text: #1c1c1c;
+  --color-muted: #4a4f57;
+  --color-link: #0b57a4;
+  --color-focus: #0b57a4;
+  --color-border: #d8d4c8;
+
+  --aqi-good: #8fd19e;
+  --aqi-good-ink: #0f3d1f;
+  --aqi-satisfactory: #d4e157;
+  --aqi-satisfactory-ink: #2b3300;
+  --aqi-moderate: #ffd54f;
+  --aqi-moderate-ink: #3d2e00;
+  --aqi-poor: #ff9e57;
+  --aqi-poor-ink: #4a1d00;
+  --aqi-veryPoor: #b4232c;
+  --aqi-veryPoor-ink: #ffffff;
+  --aqi-severe: #5c0a12;
+  --aqi-severe-ink: #ffffff;
+
+  --font-stack: 'Nirmala UI', 'Noto Sans Devanagari', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius: 10px;
+  --gutter: 1rem;
+  --touch-min: 44px;
+}

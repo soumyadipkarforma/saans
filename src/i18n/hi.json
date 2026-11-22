@@ -1,0 +1,13 @@
+{
+  "app.name": "साँस",
+  "skip.toMain": "मुख्य सामग्री पर जाएँ",
+  "header.language": "भाषा",
+  "lang.en": "English",
+  "lang.hi": "हिंदी",
+  "chat.title": "साँस से पूछें",
+  "chat.placeholder": "सहायक यहाँ दिखेगा।",
+  "footer.airData": "हवा का डेटा: CAMS via Open-Meteo (मॉडल आधारित अनुमान)",
+  "footer.version": "संस्करण {version}",
+  "footer.notMedical": "यह चिकित्सकीय सलाह नहीं है। किसी स्वास्थ्य समस्या के लिए अपने डॉक्टर की सलाह मानें।",
+  "footer.github": "GitHub पर स्रोत कोड"
+}
