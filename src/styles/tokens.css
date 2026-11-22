@@ -31,7 +31,8 @@
   --aqi-severe: #5c0a12;
   --aqi-severe-ink: #ffffff;
 
-  --font-stack: 'Nirmala UI', 'Noto Sans Devanagari', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-stack:
+    'Nirmala UI', 'Noto Sans Devanagari', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --radius: 10px;
   --gutter: 1rem;
   --touch-min: 44px;

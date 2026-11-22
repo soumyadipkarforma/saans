@@ -1,8 +1,13 @@
+import { lazy, Suspense } from 'react';
 import pkg from '../package.json';
 import styles from './App.module.css';
+import { buildDayPlan } from './engine/planner';
 import { useLang, useT } from './i18n/i18n';
 import { AqiCard } from './plan/AqiCard';
-import type { AirReading } from './types';
+import type { AirReading, Profile } from './types';
+
+// The plan screen is only needed once the plan column is shown, so it loads on demand.
+const PlanView = lazy(() => import('./plan/PlanView'));
 
 // placeholder: replace with the repository URL before launch
 const REPO_URL = 'https://github.com/';
@@ -23,6 +28,39 @@ const SAMPLE_AIR: AirReading = {
   isModelled: true,
   isStale: false,
 };
+const SAMPLE_PROFILE: Profile = {
+  location: { city: 'Delhi', lat: 28.61, lon: 77.21 },
+  household: [
+    { group: 'adult', respiratory: false, pregnant: false },
+    { group: 'child', age: 7, respiratory: false, pregnant: false },
+  ],
+  activities: [
+    {
+      kind: 'commute',
+      startHour: 8,
+      durationMin: 40,
+      distanceKm: 12,
+      mode: 'petrolCar',
+      participants: [0],
+      flexible: false,
+    },
+    {
+      kind: 'schoolRun',
+      startHour: 8,
+      durationMin: 20,
+      distanceKm: 3,
+      mode: 'twoWheeler',
+      participants: [1],
+      flexible: false,
+    },
+  ],
+};
+const SAMPLE_PLAN = buildDayPlan({
+  profile: SAMPLE_PROFILE,
+  air: SAMPLE_AIR,
+  forecast: null,
+  now: '2026-11-22T08:00:00',
+});
 
 function LanguageToggle() {
   const { lang, setLang } = useLang();
@@ -62,6 +100,9 @@ export function App() {
         </section>
         <div className={styles.plan}>
           <AqiCard air={SAMPLE_AIR} status="ready" now={SAMPLE_NOW} city="Delhi" />
+          <Suspense fallback={<p>{tr('plan.loading')}</p>}>
+            <PlanView plan={SAMPLE_PLAN} />
+          </Suspense>
         </div>
       </main>
       <footer className={styles.footer}>

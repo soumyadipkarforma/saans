@@ -1,0 +1,24 @@
+.plan {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--color-text);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-muted);
+}

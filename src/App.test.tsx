@@ -47,6 +47,13 @@ describe('App shell', () => {
     expect(within(region).getByText('updated 12 min ago')).toBeInTheDocument();
   });
 
+  it('loads the day plan lazily from the sample profile', async () => {
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Your day plan' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Morning' })).toBeInTheDocument();
+    expect(screen.getByText('Metro instead of Petrol car', { exact: false })).toBeInTheDocument();
+  });
+
   it('language toggle switches the page language and the html lang attribute', async () => {
     const user = userEvent.setup();
     render(<App />);

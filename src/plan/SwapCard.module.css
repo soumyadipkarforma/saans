@@ -1,0 +1,26 @@
+.card {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.headline {
+  margin: 0;
+  font-weight: 600;
+}
+
+.why {
+  min-height: var(--touch-min);
+  margin-top: 0.25rem;
+  padding: 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--color-link);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.reason {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+}
