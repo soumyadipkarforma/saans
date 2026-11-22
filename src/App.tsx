@@ -72,6 +72,7 @@ function LanguageToggle() {
           key={code}
           type="button"
           aria-pressed={lang === code}
+          lang={code}
           className={styles.toggleButton}
           onClick={() => setLang(code)}
         >
@@ -99,9 +100,12 @@ export function App() {
           <p className={styles.muted}>{tr('chat.placeholder')}</p>
         </section>
         <div className={styles.plan}>
+          <p className={styles.sampleNote} role="note">
+            {tr('sample.note')}
+          </p>
           <AqiCard air={SAMPLE_AIR} status="ready" now={SAMPLE_NOW} city="Delhi" />
           <Suspense fallback={<p>{tr('plan.loading')}</p>}>
-            <PlanView plan={SAMPLE_PLAN} />
+            <PlanView plan={SAMPLE_PLAN} activities={SAMPLE_PROFILE.activities} />
           </Suspense>
         </div>
       </main>

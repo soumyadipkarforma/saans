@@ -1,16 +1,18 @@
 import { useT } from '../i18n/i18n';
-import type { DayPlan } from '../types';
+import type { Activity, DayPlan } from '../types';
 import { AtHomeCard } from './AtHomeCard';
+import { activityName } from './copy';
 import { DayTimeline } from './DayTimeline';
 import { SwapCard } from './SwapCard';
 import styles from './PlanView.module.css';
 
 interface Props {
   plan: DayPlan;
+  activities: Activity[];
 }
 
 // Default export so App can load this screen lazily with React.lazy.
-export default function PlanView({ plan }: Props) {
+export default function PlanView({ plan, activities }: Props) {
   const tr = useT();
   return (
     <section aria-labelledby="plan-heading" className={styles.plan}>
@@ -18,14 +20,20 @@ export default function PlanView({ plan }: Props) {
       {plan.sensitive && <p className={styles.note}>{tr('plan.sensitive')}</p>}
       <section aria-labelledby="routine-heading" className={styles.card}>
         <h3 id="routine-heading">{tr('plan.routine')}</h3>
-        <DayTimeline blocks={plan.lowEmissionRoutine} />
+        <DayTimeline blocks={plan.lowEmissionRoutine} activities={activities} />
       </section>
       <section aria-labelledby="swaps-heading" className={styles.card}>
         <h3 id="swaps-heading">{tr('plan.swaps')}</h3>
         {plan.sustainableSwaps.length === 0 ? (
           <p className={styles.empty}>{tr('plan.noSwaps')}</p>
         ) : (
-          plan.sustainableSwaps.map((swap, index) => <SwapCard key={index} swap={swap} />)
+          plan.sustainableSwaps.map((swap, index) => (
+            <SwapCard
+              key={index}
+              swap={swap}
+              activity={activityName(activities, swap.activityIndex, tr)}
+            />
+          ))
         )}
       </section>
       <AtHomeCard tips={plan.indoorAirTips} />

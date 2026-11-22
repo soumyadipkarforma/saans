@@ -29,6 +29,14 @@
   font-weight: 600;
 }
 
+.activity {
+  margin: 0;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
 .advice {
   margin: 0;
   font-weight: 600;

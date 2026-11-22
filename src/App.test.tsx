@@ -1,13 +1,14 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App';
+import { useLang } from './i18n/i18n';
 
 afterEach(() => {
   localStorage.clear();
-  act(() => {
-    document.documentElement.lang = 'en';
-  });
+  // The language lives in module state, so reset it through the hook, not just the attribute.
+  const { result } = renderHook(() => useLang());
+  act(() => result.current.setLang('en'));
 });
 
 describe('App shell', () => {
@@ -51,7 +52,25 @@ describe('App shell', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Your day plan' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Morning' })).toBeInTheDocument();
-    expect(screen.getByText('Metro instead of Petrol car', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Metro instead of petrol car', { exact: false })).toBeInTheDocument();
+  });
+
+  it('marks the plan and reading as sample data', () => {
+    render(<App />);
+    expect(screen.getByText('Sample plan — not live data')).toBeInTheDocument();
+  });
+
+  it('marks the sample note in Hindi too', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: 'हिंदी' }));
+    expect(screen.getByText('नमूना योजना — लाइव डेटा नहीं')).toBeInTheDocument();
+  });
+
+  it('marks each language button with its own lang attribute', () => {
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('lang', 'en');
+    expect(screen.getByRole('button', { name: 'हिंदी' })).toHaveAttribute('lang', 'hi');
   });
 
   it('language toggle switches the page language and the html lang attribute', async () => {

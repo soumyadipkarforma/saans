@@ -1,4 +1,4 @@
-import type { PlanItem, Tip } from '../types';
+import type { Activity, PlanItem, Tip } from '../types';
 
 export type Params = Record<string, string | number>;
 export type Translate = (key: string, params?: Params) => string;
@@ -21,6 +21,13 @@ function paramValue(name: string, value: string | number, tr: Translate): string
   if (name === 'band') return tr(`band.${value}`);
   if (HOUR_PARAMS.has(name)) return tr(`word.${value}`);
   return value;
+}
+
+// The user's own label wins; household-level items (no activity) read as the whole household.
+export function activityName(activities: Activity[], index: number | null, tr: Translate): string {
+  const activity = index === null ? undefined : activities[index];
+  if (!activity) return tr('activity.household');
+  return activity.label ?? tr(`activity.${activity.kind}`);
 }
 
 export function adviceText(item: PlanItem, tr: Translate): string {

@@ -3,7 +3,25 @@ import en from '../i18n/en.json';
 import hi from '../i18n/hi.json';
 import { t } from '../i18n/i18n';
 import type { Lang } from '../types';
-import { adviceText, formatHour, paramText, reasonText, tipText } from './copy';
+import type { Activity } from '../types';
+import { activityName, adviceText, formatHour, paramText, reasonText, tipText } from './copy';
+
+describe('activityName', () => {
+  const activities: Activity[] = [
+    { kind: 'commute', participants: [0], flexible: false },
+    { kind: 'schoolRun', participants: [1], flexible: false, label: 'Drop at Aarav school' },
+  ];
+
+  it('labels an item by its own activity', () => {
+    expect(activityName(activities, 0, tr('en'))).toBe('Commute');
+    expect(activityName(activities, 1, tr('en'))).toBe('Drop at Aarav school');
+  });
+
+  it('labels household-level items and unknown indexes as the whole household', () => {
+    expect(activityName(activities, null, tr('en'))).toBe('Whole household');
+    expect(activityName(activities, 9, tr('en'))).toBe('Whole household');
+  });
+});
 
 const tr =
   (lang: Lang) =>
