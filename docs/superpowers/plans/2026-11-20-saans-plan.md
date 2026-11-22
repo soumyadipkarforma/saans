@@ -4,9 +4,9 @@
 
 **Goal:** A deployed static web app that turns a spoken or typed description of a household's day into a smog-safe plan for today, using live Open-Meteo air data and a deterministic impact engine, with Gemini (user's own key) only writing words.
 
-**Architecture:** One Vite + React + TypeScript app, no backend. `src/engine` is pure and fully tested. `src/data` calls Open-Meteo (air quality + geocoding) with zod-validated responses, timeouts and a 10-minute cache. `src/llm` runs a Gemini function-calling loop in the browser with the user's key, plus a template "degraded" assistant used when there is no key or Gemini fails. The UI renders every card from structured data. Voice sits behind `SpeechInput`/`SpeechOutput`. Deployed to Firebase Hosting.
+**Architecture:** One Vite + React + TypeScript app, no backend. `src/engine` is pure and fully tested. `src/data` calls Open-Meteo (air quality + geocoding) with zod-validated responses, timeouts and a 10-minute cache. `src/llm` runs a Gemini function-calling loop in the browser with the user's key, plus a template "degraded" assistant used when there is no key or Gemini fails. The UI renders every card from structured data. Voice sits behind `SpeechInput`/`SpeechOutput`. Deployed to GitHub Pages.
 
-**Tech Stack:** TypeScript 5 strict, React 19, Vite, zod, `@google/genai`, Vitest + jsdom + v8 coverage, React Testing Library, Playwright + `@axe-core/playwright`, ESLint flat config (typescript-eslint, react, react-hooks, jsx-a11y) + Prettier, GitHub Actions, Firebase Hosting.
+**Tech Stack:** TypeScript 5 strict, React 19, Vite, zod, `@google/genai`, Vitest + jsdom + v8 coverage, React Testing Library, Playwright + `@axe-core/playwright`, ESLint flat config (typescript-eslint, react, react-hooks, jsx-a11y) + Prettier, GitHub Actions, GitHub Pages.
 
 **Spec:** `docs/superpowers/specs/2026-11-20-saans-design.md` — **Amendment A at its top overrides §6, §6.2 (server parts), §6.3, §8 security items about servers, and §9 deployment.**
 
@@ -19,7 +19,7 @@
 | Motion | CSS only, no Framer Motion |
 | i18n | Own `t(key, params, lang)` over `en.json` / `hi.json` |
 | Gemini model | `GEMINI_MODEL` constant in `src/config.ts`; Task 16 checks Google's current model list and picks the fastest GA flash model with function calling (fallback `gemini-2.5-flash`) |
-| Hosting | Firebase Hosting with headers in `firebase.json` |
+| Hosting | GitHub Pages via GitHub Actions; CSP as build-time meta tag |
 
 ## Global Constraints
 
@@ -54,7 +54,7 @@
 ```
 package.json  tsconfig.json  vite.config.ts  vitest.config.ts  playwright.config.ts
 eslint.config.js  .prettierrc  .editorconfig  .gitignore  .nvmrc (22)
-firebase.json  .github/workflows/ci.yml  index.html
+.github/workflows/{ci,deploy}.yml  index.html
 README.md  CLAUDE.md  docs/{spec,plan,demo-script.md,linkedin-post.md}
 src/
   main.tsx  App.tsx  config.ts  styles/{tokens.css,global.css}
@@ -77,7 +77,7 @@ e2e/demo.spec.ts
 
 ### Task 1: Vite app, tooling, CI, README skeleton
 
-**Files:** everything in the root list above except `firebase.json`; `src/main.tsx`, `src/App.tsx` (placeholder heading "Saans"), one placeholder test.
+**Files:** everything in the root list above except `deploy.yml`; `src/main.tsx`, `src/App.tsx` (placeholder heading "Saans"), one placeholder test.
 
 - [ ] Vite React-TS app at repo root (keep existing `.gitignore`, `docs/`, `CLAUDE.md`). Scripts: `dev`, `build` (`tsc -b && vite build`), `preview`, `lint` (`eslint . --max-warnings 0`), `typecheck` (`tsc -b --noEmit` or `tsc --noEmit -p .`), `test` (`vitest run --coverage`), `test:e2e` (`playwright test`), `format`.
 - [ ] Vitest: jsdom env, setup file with `@testing-library/jest-dom`, coverage v8 thresholds global 80 (lines/branches/functions/statements) and `src/engine/**` 100.
@@ -349,8 +349,8 @@ interface SpeechOutput { isSupported(): boolean; speak(text: string, lang: Lang)
 
 ### Task 22: Security pass
 
-- [ ] `firebase.json` hosting config: `public: dist`, SPA rewrite, headers: CSP `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://generativelanguage.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: microphone=(self), geolocation=(self), camera=()`, long cache for `/assets/**`. Same CSP as a `<meta>` in `index.html` (minus `frame-ancestors`) so preview builds are covered.
-- [ ] Tests: a test reads `src/**` and fails on `dangerouslySetInnerHTML`, `innerHTML =`, `eval(`; a test asserts `firebase.json` CSP `connect-src` lists exactly those hosts; a test asserts the key never appears in `localStorage` after `keyStore.set`.
+- [ ] CSP as a `<meta http-equiv="Content-Security-Policy">` injected only at build by a Vite `transformIndexHtml` plugin (`apply: 'build'`): `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://generativelanguage.googleapis.com; base-uri 'self'; form-action 'self'` (GitHub Pages cannot send headers, so no `frame-ancestors`). Also `<meta name="referrer" content="strict-origin-when-cross-origin">`.
+- [ ] Tests: a test reads `src/**` and fails on `dangerouslySetInnerHTML`, `innerHTML =`, `eval(`; a test asserts the built CSP string's `connect-src` lists exactly those hosts; a test asserts the key never appears in `localStorage` after `keyStore.set`.
 - [ ] `npm audit --omit=dev` clean (or each item justified in README). Commit.
 
 ### Task 23: E2E, accessibility, coverage, performance
@@ -365,10 +365,10 @@ interface SpeechOutput { isSupported(): boolean; speak(text: string, lang: Lang)
 
 ## Milestone 9 — Deploy
 
-### Task 24: Firebase Hosting
+### Task 24: GitHub Pages
 
-- [ ] README deploy section: `npm i -g firebase-tools`, `firebase login`, `firebase init hosting` (use existing `firebase.json`), `npm run build && firebase deploy --only hosting`.
-- [ ] **User runs** login + deploy (their Google account). Then smoke test the live URL: page loads, Delhi and Mumbai show different readings with source + timestamp, demo family end to end without a key, with a key one Gemini turn, Hindi turn, response headers include the CSP. Paste outputs. Commit.
+- [ ] `vite.config.ts` `base` = `process.env.BASE_PATH ?? '/'`. `.github/workflows/deploy.yml`: on push to `main` → `npm ci`, lint, typecheck, test, `BASE_PATH=/<repo>/ npm run build`, `actions/upload-pages-artifact` (dist) + `actions/deploy-pages`; permissions `pages: write`, `id-token: write`, `contents: read`. Add `public/.nojekyll`. README deploy section.
+- [ ] **User approves** creating the public GitHub repo and the push; enable Pages (source: GitHub Actions). Then smoke test the live URL: Delhi vs Mumbai readings with source + timestamp, demo family without a key, one Gemini turn with a key, Hindi turn, CSP meta present. Commit.
 
 ---
 
@@ -402,5 +402,5 @@ interface SpeechOutput { isSupported(): boolean; speak(text: string, lang: Lang)
 
 1. Exact submission deadline.
 2. A Gemini key in your browser for testing (never in chat or the repo).
-3. A Google account for Firebase Hosting (Milestone 9).
+3. Approval to create the public GitHub repo and push (Milestone 9).
 4. GitHub repo name.

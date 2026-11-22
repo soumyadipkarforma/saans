@@ -95,4 +95,4 @@ Requires Node 22 or later (see `.nvmrc`).
 
 ## Still to write
 
-Live link, demo video, screenshots, accessibility notes, deployment (Firebase Hosting), and "What GenAI did vs what I did" will be added as those parts are built.
+Live link, demo video, screenshots, accessibility notes, deployment (GitHub Pages), and "What GenAI did vs what I did" will be added as those parts are built.

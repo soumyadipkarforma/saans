@@ -11,7 +11,7 @@ Decided by the author after a CORS check (OpenAQ v3 blocks browser preflight wit
 3. **Gemini: bring your own key.** The user pastes their own Gemini API key (link to Google AI Studio). It is held in `sessionStorage` only (gone when the tab closes), never logged, never sent anywhere except `generativelanguage.googleapis.com`, with a visible "Remove key" button. Calls go from the browser via the official `@google/genai` SDK.
 4. **No key = degraded mode, fully usable.** Without a key, Saans still geocodes, fetches live air data, builds the engine plan and shows template replies and chips. Demo families work without a key. This is what Round 2 judges see if they don't add a key.
 5. **Security in a static app:** strict CSP (`connect-src` limited to Open-Meteo hosts and the Gemini API), zod validation of every API response and every user input, length limits, a client-side turn limit to protect the user's quota, no `dangerouslySetInnerHTML`, `npm audit` clean.
-6. **Deploy:** Firebase Hosting (Google, static, security headers set in `firebase.json`). README documents `firebase deploy`.
+6. **Deploy:** GitHub Pages via a GitHub Actions workflow (author's choice, 2026-11-22). CSP is a build-time `<meta>` tag because Pages cannot send headers.
 7. The golden rule, the no-medical-advice rule, voice, Hindi, demo families, accessibility and testing targets are unchanged.
 
 ## 1. Context: the competition
