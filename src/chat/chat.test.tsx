@@ -131,4 +131,14 @@ describe('useConversation', () => {
     expect(result.current.profile).toEqual(profile);
     expect(localStorage.getItem('saans.profile')).toBeNull();
   });
+
+  it('keeps the last turn that had air while a later turn has none', async () => {
+    const good = turn({ air: { aqi: 1 } as AssistantTurn['air'] });
+    const assistant = vi.fn<Assistant>().mockResolvedValueOnce(good).mockResolvedValue(turn());
+    const { result } = renderHook(() => useConversation(assistant));
+    await act(() => result.current.send('Delhi'));
+    await act(() => result.current.send('thanks'));
+    expect(result.current.turn?.air).toBeNull();
+    expect(result.current.lastGood).toBe(good);
+  });
 });

@@ -116,5 +116,8 @@
   "chip.wfh": "घर से काम करूँ तो?",
   "chip.childPlay": "क्या मेरा बच्चा 5 बजे बाहर खेल सकता है?",
   "chip.explain": "AQI समझाइए",
-  "reply.airSensitive": "{city} में हवा {band} है, AQI {aqi}। घर में कोई संवेदनशील है, इसलिए सलाह सावधानी वाली रखी है; स्रोत: CAMS via Open-Meteo, यह एक मॉडल अनुमान है।"
+  "reply.airSensitive": "{city} में हवा {band} है, AQI {aqi}। घर में कोई संवेदनशील है, इसलिए सलाह सावधानी वाली रखी है; स्रोत: CAMS via Open-Meteo, यह एक मॉडल अनुमान है।",
+  "reply.changeCity": "शहर बदलने के लिए उसका नाम लिखें।",
+  "reply.followUp": "Gemini कुंजी के बिना मैं केवल योजना को ताज़ा कर सकता हूँ।",
+  "reply.assumedCommute": "मैं मान रहा हूँ कि सुबह 9:00 बजे 10 किमी का सफ़र है।"
 }

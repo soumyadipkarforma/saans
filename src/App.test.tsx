@@ -98,6 +98,53 @@ describe('App shell', () => {
     expect(screen.getByLabelText('Your message')).toHaveFocus();
   });
 
+  it('keeps the reading and plan on screen while the user picks a place', async () => {
+    const user = userEvent.setup();
+    const profile: Profile = {
+      location: { city: 'Delhi', lat: 28.61, lon: 77.21 },
+      household: [{ group: 'adult', respiratory: false, pregnant: false }],
+      activities: [],
+    };
+    const stamp = new Date().toISOString();
+    const air: AirReading = {
+      aqi: 223,
+      band: 'poor',
+      pm25: 150,
+      pm10: 210,
+      dominantPollutant: 'pm25',
+      source: 'CAMS via Open-Meteo',
+      stationOrGrid: 'x',
+      observedAt: stamp,
+      fetchedAt: stamp,
+      isModelled: true,
+      isStale: false,
+    };
+    const base = {
+      chips: [],
+      profile,
+      forecast: null,
+      candidates: [],
+      degraded: true,
+      guarded: false,
+    };
+    const assistant = vi
+      .fn<Assistant>()
+      .mockResolvedValueOnce({
+        ...base,
+        reply: 'ok',
+        air,
+        plan: buildDayPlan({ profile, air, forecast: null, now: '2026-11-22T08:00' }),
+      })
+      .mockResolvedValue({ ...base, reply: 'Which one?', air: null, plan: null });
+    render(<App assistant={assistant} />);
+    await user.type(screen.getByLabelText('Your message'), 'Delhi{Enter}');
+    await screen.findByRole('heading', { name: 'Your day plan' });
+    await user.type(screen.getByLabelText('Your message'), 'Aurangabad{Enter}');
+    await within(screen.getByRole('log')).findByText(/Which one/);
+    expect(screen.getByRole('region', { name: 'Air in Delhi' })).toHaveTextContent('223');
+    expect(screen.getByRole('heading', { name: 'Your day plan' })).toBeInTheDocument();
+  });
+
   it('marks each language button with its own lang attribute', () => {
     render(<App assistant={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('lang', 'en');

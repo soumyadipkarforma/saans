@@ -43,13 +43,15 @@ function LanguageToggle() {
 
 export function App({ assistant = defaultAssistant }: { assistant?: Assistant }) {
   const tr = useT();
-  const { messages, turn, turnAt, status, send } = useConversation(assistant);
+  const { messages, turn, lastGood, turnAt, status, send } = useConversation(assistant);
   const thinking = status === 'thinking';
 
+  // A turn with no air and no failure (picking a place, not found) keeps showing the last good reading.
+  const shown = turn && !turn.air && !turn.notice ? lastGood : turn;
   let airStatus: AirStatus = 'idle';
   if (thinking) airStatus = 'loading';
-  else if (turn?.air) airStatus = 'ready';
-  else if (turn?.notice === 'airUnavailable') airStatus = 'unavailable';
+  else if (shown?.air) airStatus = 'ready';
+  else if (shown?.notice === 'airUnavailable') airStatus = 'unavailable';
 
   function pick(label: string) {
     void send(label);
@@ -75,14 +77,14 @@ export function App({ assistant = defaultAssistant }: { assistant?: Assistant })
         </section>
         <div className={styles.plan}>
           <AqiCard
-            air={turn?.air ?? null}
+            air={shown?.air ?? null}
             status={airStatus}
             now={turnAt}
-            city={turn?.profile.location?.city}
+            city={shown?.profile.location?.city}
           />
-          {turn?.plan && (
+          {shown?.plan && (
             <Suspense fallback={<p>{tr('plan.loading')}</p>}>
-              <PlanView plan={turn.plan} activities={turn.profile.activities} />
+              <PlanView plan={shown.plan} activities={shown.profile.activities} />
             </Suspense>
           )}
         </div>

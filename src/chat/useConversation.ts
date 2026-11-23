@@ -43,6 +43,7 @@ export function useConversation(assistant: Assistant) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [profile, setProfileState] = useState<Profile>(loadProfile);
   const [turn, setTurn] = useState<AssistantTurn | null>(null);
+  const [lastGood, setLastGood] = useState<AssistantTurn | null>(null);
   const [turnAt, setTurnAt] = useState(() => new Date());
   const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
   const busy = useRef(false);
@@ -66,6 +67,7 @@ export function useConversation(assistant: Assistant) {
       try {
         const result = await assistant({ messages: withUser, profile, lang, now });
         setTurn(result);
+        if (result.air) setLastGood(result);
         setTurnAt(now);
         setProfile(result.profile);
         // Model text is capped to the schema limit so it can be sent back as context.
@@ -86,9 +88,10 @@ export function useConversation(assistant: Assistant) {
   const reset = useCallback(() => {
     setMessages([]);
     setTurn(null);
+    setLastGood(null);
     setProfileState(EMPTY_PROFILE);
     saveProfile(null);
   }, []);
 
-  return { messages, profile, turn, turnAt, status, send, setProfile, reset };
+  return { messages, profile, turn, lastGood, turnAt, status, send, setProfile, reset };
 }

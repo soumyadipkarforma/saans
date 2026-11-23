@@ -116,5 +116,8 @@
   "chip.wfh": "What if I work from home?",
   "chip.childPlay": "Can my child play outside at 5?",
   "chip.explain": "Explain the AQI",
-  "reply.airSensitive": "Air in {city} is {band}, AQI {aqi}. Someone at home is sensitive, so I kept the advice cautious; source: CAMS via Open-Meteo, a modelled estimate."
+  "reply.airSensitive": "Air in {city} is {band}, AQI {aqi}. Someone at home is sensitive, so I kept the advice cautious; source: CAMS via Open-Meteo, a modelled estimate.",
+  "reply.changeCity": "To change city, type its name.",
+  "reply.followUp": "Without a Gemini key I can only refresh the plan.",
+  "reply.assumedCommute": "I am assuming a 10 km commute at 9:00."
 }
