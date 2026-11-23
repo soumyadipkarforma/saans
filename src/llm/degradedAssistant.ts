@@ -9,7 +9,7 @@ import { chipsFor, FOLLOW_UP_CHIPS, parseQuick, templateReply } from './template
 
 type AirService = ReturnType<typeof createAirService>;
 
-const label = (l: Location) => (l.state ? `${l.city}, ${l.state}` : l.city);
+export const label = (l: Location) => (l.state ? `${l.city}, ${l.state}` : l.city);
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 // Matches the geocoder's own cap; candidate chips such as "Delhi, National Capital Territory of Delhi" are long.
 const MAX_PLACE_CHARS = 80;
@@ -20,7 +20,7 @@ function isFollowUpChip(text: string): boolean {
 }
 
 // A candidate chip reads "City, State" and selects that exact place; plain text is a name search.
-async function findPlace(
+export async function findPlace(
   geocode: typeof searchIndia,
   text: string,
   exactOnly: boolean,
