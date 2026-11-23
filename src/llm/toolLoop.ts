@@ -5,6 +5,7 @@ import { computeSwapImpact } from '../engine/impact';
 import { buildDayPlan } from '../engine/planner';
 import { t } from '../i18n/i18n';
 import { istNow } from '../time';
+import { allowedNumbers, guardReply } from './numberGuard';
 import {
   ProfileSchema,
   type AirReading,
@@ -36,6 +37,7 @@ export function createGeminiAssistant(deps: {
     let forecast: Forecast | null = null;
     let plan: DayPlan | null = null;
     let candidates: Location[] = [];
+    const swapNumbers: number[] = []; // swap results are engine output the model may quote
     const say = (key: string) => t(key, {}, lang);
 
     const turn = (over: Partial<AssistantTurn>): AssistantTurn => {
@@ -119,7 +121,9 @@ export function createGeminiAssistant(deps: {
         const a = await loadAir(next.location);
         if (a.pm25 === null) return fail('PM2.5 is unavailable.');
         const { personGroup, ...rest } = parsed.data;
-        return { ...computeSwapImpact({ ...rest, pm25: a.pm25, group: personGroup }) };
+        const impact = computeSwapImpact({ ...rest, pm25: a.pm25, group: personGroup });
+        swapNumbers.push(...Object.values(impact));
+        return { ...impact };
       }
 
       if (!next.location) return fail('Location unknown; ask the user for their city.');
@@ -165,13 +169,33 @@ export function createGeminiAssistant(deps: {
       return fail(`Unknown tool ${name}.`);
     }
 
+    // Template text, with the plan if we can build one; used when the loop ends or the guard trips.
+    async function fallback(guarded: boolean): Promise<AssistantTurn> {
+      const over = { degraded: true, guarded };
+      if (!next.location) return turn({ reply: say('reply.askLocation'), ...over });
+      let a: AirReading | null = air;
+      try {
+        a ??= await loadAir(next.location);
+      } catch {
+        return turn({ reply: say('reply.airUnavailable'), notice: 'airUnavailable', ...over });
+      }
+      plan ??= makePlan(a, forecast);
+      return turn({ reply: templateReply(lang, a, plan, next.location.city), ...over });
+    }
+
     const contents: unknown[] = messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
     const tools = [{ functionDeclarations: toolDeclarations }];
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       const res = await deps.llm.generate({ system: systemPrompt(lang), contents, tools });
       if (res.calls.length === 0) {
-        if (res.text) return turn({ reply: res.text });
-        break;
+        if (!res.text) break;
+        const guard = guardReply(
+          res.text,
+          new Set([...allowedNumbers({ air, forecast, plan }, next), ...swapNumbers]),
+        );
+        if (!guard.guarded) return turn({ reply: res.text });
+        // A number no tool produced: swap in the template (the cards still show real data).
+        return fallback(true);
       }
       contents.push(
         res.modelContent ?? {
@@ -195,11 +219,6 @@ export function createGeminiAssistant(deps: {
       contents.push({ role: 'user', parts });
     }
 
-    // Loop exhausted or empty reply: fall back to the template, with the plan if we can build one.
-    if (!next.location) return turn({ reply: say('reply.askLocation'), degraded: true });
-    if (!air) return turn({ reply: say('reply.airUnavailable'), degraded: true });
-    const a: AirReading = air;
-    plan ??= makePlan(a, forecast);
-    return turn({ reply: templateReply(lang, a, plan, next.location.city), degraded: true });
+    return fallback(false);
   };
 }

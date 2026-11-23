@@ -3,6 +3,7 @@ import type { createAirService } from '../data/airService';
 import type { AirReading, Forecast, Location, Profile } from '../types';
 import type { LlmClient } from './llmClient';
 import { systemPrompt } from './systemPrompt';
+import { computeSwapImpact } from '../engine/impact';
 import { createGeminiAssistant } from './toolLoop';
 
 const delhi: Location = { city: 'Delhi', state: 'Delhi', lat: 28.61, lon: 77.21 };
@@ -150,6 +151,55 @@ describe('createGeminiAssistant', () => {
     ]);
     await make(llm)({ messages: user('metro?'), ...base({ ...empty, location: delhi }) });
     expect(JSON.stringify(seen[1]?.contents)).toContain('exposureSavedPct');
+  });
+});
+
+describe('number guard in the loop', () => {
+  const withAir = base({ ...empty, location: delhi });
+  it('replaces a reply that states a made-up number with the template', async () => {
+    const { llm } = scripted([call('get_air_quality'), { text: 'AQI is 999 today.' }]);
+    const turn = await make(llm)({ messages: user('aqi'), ...withAir });
+    expect(turn.guarded).toBe(true);
+    expect(turn.reply).toContain('312');
+    expect(turn.reply).not.toContain('999');
+    expect(turn.air).toEqual(air);
+  });
+
+  it('lets a reply quoting the tool reading through', async () => {
+    const { llm } = scripted([call('get_air_quality'), { text: 'AQI is 312, very poor.' }]);
+    const turn = await make(llm)({ messages: user('aqi'), ...withAir });
+    expect(turn.guarded).toBe(false);
+  });
+
+  it('guards Devanagari digits too', async () => {
+    const { llm } = scripted([call('get_air_quality'), { text: 'एक्यूआई ९९९ है' }]);
+    const turn = await make(llm)({
+      messages: user('aqi'),
+      lang: 'hi',
+      profile: withAir.profile,
+      now,
+    });
+    expect(turn.guarded).toBe(true);
+  });
+
+  it('allows a number the swap tool returned', async () => {
+    const args = { distanceKm: 10, fromMode: 'petrolCar', toMode: 'metro', personGroup: 'child' };
+    const { pct } = {
+      pct: computeSwapImpact({
+        distanceKm: 10,
+        fromMode: 'petrolCar',
+        toMode: 'metro',
+        pm25: 180,
+        group: 'child',
+      }).exposureSavedPct,
+    };
+    const { llm } = scripted([
+      call('compute_swap_impact', args),
+      { text: `Metro cuts smog inhaled by ${pct}%.` },
+    ]);
+    const turn = await make(llm)({ messages: user('metro?'), ...withAir });
+    expect(turn.guarded).toBe(false);
+    expect(turn.reply).toContain(String(pct));
   });
 });
 
