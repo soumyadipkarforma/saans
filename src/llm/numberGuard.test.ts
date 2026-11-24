@@ -40,6 +40,10 @@ const plan = buildDayPlan({
 const turn: Partial<AssistantTurn> = { air, plan };
 const allowed = allowedNumbers(turn, [8, 14, 35]); // as if the user wrote them
 
+// A real Gemini reply captured live, for a Pune reading observed 2026-11-24 16:00 IST.
+const CAPTURED =
+  "Air in Pune is satisfactory, with a CAMS via Open-Meteo modelled estimate from Nov 24, 4:00 PM. It means air is generally acceptable, though sensitive groups like your dad may experience minor concerns; please follow his doctor's advice.";
+
 describe('extractNumbers', () => {
   it('reads ASCII digits, decimals and percents', () => {
     expect(extractNumbers('AQI is 312, PM 12.5 and 38%')).toEqual([312, 12.5, 38]);
@@ -144,11 +148,9 @@ describe('timestamps and scale facts', () => {
     observedAt: '2026-11-24T16:00:00+05:30',
     fetchedAt: '2026-11-24T16:05:00+05:30',
   };
-  const captured =
-    "Air in Pune is satisfactory, with a CAMS via Open-Meteo modelled estimate from Nov 24, 4:00 PM. It means air is generally acceptable, though sensitive groups like your dad may experience minor concerns; please follow his doctor's advice.";
   it('passes the real captured Gemini sentence', () => {
     const set = allowedNumbers({ air: pune });
-    expect(guardReply(captured, set).guarded).toBe(false);
+    expect(guardReply(CAPTURED, set).guarded).toBe(false);
   });
   it('no longer allows scale facts or band boundaries', () => {
     const set = allowedNumbers({});

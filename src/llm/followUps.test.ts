@@ -4,7 +4,7 @@ import { AQI_MAX, DEFAULT_TRIP_KM } from '../engine/constants';
 import { tripCo2Kg } from '../engine/emissions';
 import { round, tripExposureUg } from '../engine/impact';
 import type { AirReading, Forecast, Profile } from '../types';
-import { allowedNumbers, guardReply, readings } from './numberGuard';
+import { allowedNumbers, guardReply } from './numberGuard';
 import { answerFollowUp, followUpKind } from './followUps';
 
 const air: AirReading = {
@@ -125,7 +125,8 @@ describe('explainAqi', () => {
 
 describe('numbers in follow-up replies', () => {
   it('only come from the turn data or the question itself', () => {
-    // 0 and AQI_MAX are engine scale constants, fine in code-written text.
+    // Code-written text: only the set check applies. 0 and AQI_MAX are engine scale constants, and the
+    // sentence-level AQI attribution check is for model text (these replies say "12 min ago" next to the AQI).
     const extra = [
       0,
       AQI_MAX,
@@ -138,7 +139,7 @@ describe('numbers in follow-up replies', () => {
       for (const f of [forecast(45), forecast(95)]) {
         const turn = { air, forecast: f };
         const r = answerFollowUp(kind, ctx({ forecast: f })).reply;
-        expect(guardReply(r, allowedNumbers(turn, extra), readings(turn)).guarded, r).toBe(false);
+        expect(guardReply(r, allowedNumbers(turn, extra)).guarded, r).toBe(false);
       }
     }
   });

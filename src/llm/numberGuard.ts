@@ -1,15 +1,18 @@
 import type { AssistantTurn, Profile } from '../types';
 
-const DEVANAGARI_ZERO = 0x0966;
-const FULLWIDTH_ZERO = 0xff10;
 // Pollutant names carry digits that are not readings.
 const POLLUTANT = /PM\s?(?:2\.5|10)/gi;
 const TIME_12H = /(\d{1,2})(?::\d{2})?\s*(am|pm)\b/gi;
 
+// Zero-width characters are dropped and every digit script is mapped to ASCII, so "3<ZWSP>00" is 300.
 function toAscii(text: string): string {
+  const digit = (zero: number) => (d: string) => String((d.codePointAt(0) ?? zero) - zero);
   return text
-    .replace(/[०-९]/g, (d) => String((d.codePointAt(0) ?? DEVANAGARI_ZERO) - DEVANAGARI_ZERO))
-    .replace(/[０-９]/g, (d) => String((d.codePointAt(0) ?? FULLWIDTH_ZERO) - FULLWIDTH_ZERO));
+    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '')
+    .replace(/[०-९]/g, digit(0x0966))
+    .replace(/[٠-٩]/g, digit(0x0660))
+    .replace(/[۰-۹]/g, digit(0x06f0))
+    .replace(/[０-９]/g, digit(0xff10));
 }
 
 // Hindi numerals 1 to 99, in order, so any compound such as पचपन or निन्यानवे counts.
@@ -99,14 +102,14 @@ const WORD_VALUES: Record<string, number> = Object.fromEntries(
   }).map(([w, v]) => [w.normalize('NFD'), v]),
 );
 
-// Rewrites runs of number words that total 11 or more as digits: "three hundred" -> "300".
-function spellOut(text: string): string {
+// Rewrites runs of number words that total `minTotal` or more as digits: "three hundred" -> "300".
+function spellOut(text: string, minTotal = 11): string {
   const src = text.normalize('NFD').toLowerCase();
   let out = '';
   let copied = 0;
   let run: { start: number; end: number; total: number; current: number } | null = null;
   const flush = () => {
-    if (run && run.total + run.current >= 11) {
+    if (run && run.total + run.current >= minTotal) {
       out += src.slice(copied, run.start) + ` ${run.total + run.current} `;
       copied = run.end;
     }
@@ -202,17 +205,32 @@ export function allowedNumbers(
   return set;
 }
 
-type Readings = { aqi: Set<number>; pm25: Set<number>; pm10: Set<number> };
+type Readings = {
+  aqi: Set<number>;
+  pm25: Set<number>;
+  pm10: Set<number>;
+  /** 24-hour clock hours the turn's timestamps and plan mention. */
+  hours: Set<number>;
+};
 
 // The only values a reply may attach to the words AQI, PM2.5 and PM10 in this turn.
 export function readings(turn: Partial<AssistantTurn>): Readings {
-  const r: Readings = { aqi: new Set(), pm25: new Set(), pm10: new Set() };
-  if (turn.air) {
-    addNumber(r.aqi, turn.air.aqi);
-    addNumber(r.pm25, turn.air.pm25);
-    addNumber(r.pm10, turn.air.pm10);
+  const r: Readings = { aqi: new Set(), pm25: new Set(), pm10: new Set(), hours: new Set() };
+  const { air, forecast, plan } = turn;
+  if (air) {
+    addNumber(r.aqi, air.aqi);
+    addNumber(r.pm25, air.pm25);
+    addNumber(r.pm10, air.pm10);
+    for (const iso of [air.observedAt, air.fetchedAt]) {
+      const ms = Date.parse(iso);
+      if (!Number.isNaN(ms)) r.hours.add(new Date(ms + IST_OFFSET_MS).getUTCHours());
+    }
   }
-  turn.forecast?.hours.forEach((h) => addNumber(r.pm25, h.pm25));
+  forecast?.hours.forEach((h) => {
+    addNumber(r.pm25, h.pm25);
+    r.hours.add(Number(h.time.slice(11, 13)));
+  });
+  plan?.lowEmissionRoutine.forEach((b) => b.items.forEach((i) => r.hours.add(i.startHour)));
   return r;
 }
 
@@ -220,31 +238,55 @@ export function readings(turn: Partial<AssistantTurn>): Readings {
 const EDGE = String.raw`[^\p{L}\p{N}]*`;
 const label = (core: string) => new RegExp(`^${EDGE}(?:${core})${EDGE}$`, 'u');
 // Pollutant names are rewritten to letters so their own digits are never read as numbers.
-const LABELS: [RegExp, keyof Readings][] = [
+const LABELS: [RegExp, 'aqi' | 'pm25' | 'pm10'][] = [
   [label('aqi|एक्यूआई'), 'aqi'],
   [label('pmtwofive'), 'pm25'],
   [label('pmten'), 'pm10'],
 ];
-const WINDOW = 3;
+const kindOf = (w: string) => LABELS.find(([re]) => re.test(w))?.[1];
+const MERIDIEM = /^(a|p)\.?m\.?\W*$/;
+const NUM = String.raw`\d+(?:\.\d+)?`;
 
-// Every number within three words after AQI, PM2.5 or PM10 must be that reading.
+// To 24-hour time: "4" + "pm" -> 16.
+const to24 = (h: number, pm: boolean) => (h % 12) + (pm ? 12 : 0);
+
+// In a sentence that names AQI, PM2.5 or PM10, every number must be that reading (the nearest
+// label before it). Clock times are the only exception, and the hour must come from the turn.
 function misattributed(reply: string, facts: Readings): boolean {
-  const text = spellOut(toAscii(reply))
-    .replace(/pm\s?2\.5/g, ' pmtwofive ')
-    .replace(/pm\s?10/g, ' pmten ')
-    .replace(/[*_`~#>()[\]{}“”"'‘’=≈→:]/g, ' ');
-  const words = text.split(/\s+/).filter(Boolean);
-  const kindOf = (w: string) => LABELS.find(([re]) => re.test(w))?.[1];
-  return words.some((word, i) => {
-    const kind = kindOf(word);
-    if (!kind) return false;
-    for (let j = i + 1; j <= i + WINDOW && j < words.length; j++) {
-      const w = words[j] ?? '';
-      if (kindOf(w)) break; // the next label starts its own window
-      const nums = (w.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
-      if (nums.some((n) => !facts[kind].has(n))) return true;
-    }
-    return false;
+  const named = toAscii(reply)
+    .replace(/pm\s?2\.5/gi, ' pmtwofive ')
+    .replace(/pm\s?10/gi, ' pmten ');
+  const sentences = named.split(/[!?।\n]+|\.(?=\s|$)/);
+  return sentences.some((raw) => {
+    const text = spellOut(raw, 1)
+      .replace(/[*_`~#>()[\]{}“”"'‘’=≈→,;]/g, ' ')
+      .replace(/(?<!\d):|:(?!\d)/g, ' ');
+    const words = text.split(/\s+/).filter(Boolean);
+    let current = words.map(kindOf).find((k) => k !== undefined);
+    if (!current) return false;
+    return words.some((w, i) => {
+      const kind = kindOf(w);
+      if (kind) {
+        current = kind;
+        return false;
+      }
+      const next = words[i + 1] ?? '';
+      const clock = w.match(/^(\d{1,2}):(\d{2})$/);
+      const suffixed = w.match(/^(\d{1,2})(?::(\d{2}))?(a|p)\.?m\.?\W*$/);
+      const spaced = w.match(/^(\d{1,2})$/) && MERIDIEM.exec(next);
+      if (clock && !MERIDIEM.test(next)) {
+        const h = Number(clock[1]); // no am/pm given: either half of the day may be meant
+        return !(facts.hours.has(h) || facts.hours.has((h + 12) % 24));
+      }
+      if (clock || suffixed || spaced) {
+        const h = Number((clock ?? suffixed ?? w.match(/^\d+/))?.[1] ?? w);
+        const pm = (suffixed?.[3] ?? MERIDIEM.exec(next)?.[1]) === 'p';
+        return !facts.hours.has(to24(h, pm));
+      }
+      return (w.match(new RegExp(NUM, 'g')) ?? []).some(
+        (n) => !facts[current as 'aqi'].has(Number(n)),
+      );
+    });
   });
 }
 

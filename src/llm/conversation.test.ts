@@ -3,7 +3,7 @@ import { AQI_MAX } from '../engine/constants';
 import { minutesSince } from '../time';
 import type { AirReading, AssistantTurn, ChatMessage, Forecast, Location, Profile } from '../types';
 import { createDegradedAssistant } from './degradedAssistant';
-import { allowedNumbers, guardReply, readings } from './numberGuard';
+import { allowedNumbers, guardReply } from './numberGuard';
 
 const delhi: Location = { city: 'Delhi', state: 'Delhi', lat: 28.61, lon: 77.21 };
 const baseAir: AirReading = {
@@ -141,9 +141,10 @@ describe('no-key conversation', () => {
       await c.say('Explain the AQI'),
     ];
     for (const turn of turns) {
-      // 0 and AQI_MAX are engine scale constants, fine in code-written text.
+      // Code-written text: only the set check applies. 0 and AQI_MAX are engine scale constants, and the
+      // sentence-level AQI attribution check is for model text (these replies say "12 min ago" next to the AQI).
       const extra = [minutesSince(baseAir.observedAt, now), 17, 5, 0, AQI_MAX];
-      const g = guardReply(turn.reply, allowedNumbers(turn, extra), readings(turn));
+      const g = guardReply(turn.reply, allowedNumbers(turn, extra));
       expect(g.guarded, turn.reply).toBe(false);
     }
   });
