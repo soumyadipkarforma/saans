@@ -6,15 +6,19 @@ import { Chips } from './chat/Chips';
 import { MessageList } from './chat/MessageList';
 import { useConversation, type Assistant } from './chat/useConversation';
 import { createAirService } from './data/airService';
+import { DemoPicker } from './demo/DemoPicker';
+import type { DemoFamily } from './demo/families';
+import { TrySaying } from './demo/TrySaying';
+import { useScript } from './demo/useScript';
 import { searchIndia } from './data/geocode';
-import { useLang, useT } from './i18n/i18n';
+import { t, useLang, useT } from './i18n/i18n';
 import { KeyDialog } from './key/KeyDialog';
 import { keyStore } from './key/keyStore';
 import { createAssistant } from './llm/assistant';
 import { AqiCard, type AirStatus } from './plan/AqiCard';
 import { MicButton } from './speech/MicButton';
 import { useSpeech } from './speech/useSpeech';
-import type { ChatMessage } from './types';
+import { LocationSchema, type ChatMessage } from './types';
 
 // The plan screen is only needed once the plan column is shown, so it loads on demand.
 const PlanView = lazy(() => import('./plan/PlanView'));
@@ -65,7 +69,8 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
       }),
     [injected],
   );
-  const { messages, turn, lastGood, turnAt, status, send } = useConversation(assistant);
+  const { messages, profile, turn, lastGood, turnAt, status, send, setProfile, reset } =
+    useConversation(assistant);
   const thinking = status === 'thinking';
   const speech = useSpeech((text) => void send(text));
   const { speak, cancel: stopSpeaking, error: micError } = speech;
@@ -95,6 +100,43 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
   if (thinking) airStatus = 'loading';
   else if (shown?.air) airStatus = 'ready';
   else if (shown?.notice === 'airUnavailable') airStatus = 'unavailable';
+
+  const [fill, setFill] = useState<{ text: string } | null>(null);
+  const [locMsg, setLocMsg] = useState<string | null>(null);
+  const { run, running } = useScript({ profile, setProfile, say, idle: !thinking });
+
+  // Resolve the family's city through the same assistant path as typing, then set the profile
+  // and play the script, so the demo shows live data with or without an AI key.
+  function startDemo(f: DemoFamily) {
+    reset();
+    run([
+      { kind: 'say', text: f.placeLabel },
+      { kind: 'profile', apply: (p) => ({ ...p, ...f.profile }) },
+      ...f.script.map((text) => ({ kind: 'say' as const, text, wait: true })),
+    ]);
+  }
+
+  function locate() {
+    if (!navigator.geolocation) return setLocMsg('loc.unsupported');
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        // The schema's India bounding box is the single place that decides "in India".
+        const location = LocationSchema.safeParse({
+          city: t('loc.yours'),
+          lat: coords.latitude,
+          lon: coords.longitude,
+        });
+        if (!location.success) return setLocMsg('loc.outside');
+        setLocMsg(null);
+        run([
+          { kind: 'profile', apply: (p) => ({ ...p, location: location.data }) },
+          { kind: 'say', text: t('loc.ask') },
+        ]);
+      },
+      () => setLocMsg('loc.denied'),
+      { timeout: 10_000 },
+    );
+  }
 
   function pick(label: string) {
     say(label);
@@ -141,7 +183,14 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
           )}
           <Chips items={turn?.chips ?? []} onPick={pick} />
           <MicButton speech={speech} />
-          <ChatInput onSend={say} busy={thinking} />
+          <ChatInput onSend={say} busy={thinking} fill={fill} />
+          <DemoPicker onPick={startDemo} disabled={running || thinking} />
+          {running && <p role="status">{tr('demo.playing')}</p>}
+          <TrySaying onPick={(text) => setFill({ text })} />
+          <button type="button" className={styles.aiButton} onClick={locate}>
+            {tr('loc.button')}
+          </button>
+          {locMsg && <p role="status">{tr(locMsg)}</p>}
         </section>
         <div className={styles.plan}>
           <AqiCard
