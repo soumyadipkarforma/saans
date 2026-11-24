@@ -1,0 +1,61 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.mic,
+.mute {
+  min-height: var(--touch-min);
+  padding: 0 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mic {
+  min-height: 4rem;
+  min-width: 10rem;
+  font-weight: 700;
+}
+
+.mic[aria-pressed='true'],
+.mute[aria-pressed='true'] {
+  background: var(--color-text);
+  color: var(--color-surface);
+}
+
+.listening {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 0.5rem var(--color-border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listening {
+    animation: none;
+  }
+}
+
+.caption {
+  flex-basis: 100%;
+  min-height: 1.5em;
+  margin: 0;
+  text-align: center;
+  font-style: italic;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-muted);
+}

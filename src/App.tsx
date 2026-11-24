@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import pkg from '../package.json';
 import styles from './App.module.css';
 import { ChatInput } from './chat/ChatInput';
@@ -12,6 +12,9 @@ import { KeyDialog } from './key/KeyDialog';
 import { keyStore } from './key/keyStore';
 import { createAssistant } from './llm/assistant';
 import { AqiCard, type AirStatus } from './plan/AqiCard';
+import { MicButton } from './speech/MicButton';
+import { useSpeech } from './speech/useSpeech';
+import type { ChatMessage } from './types';
 
 // The plan screen is only needed once the plan column is shown, so it loads on demand.
 const PlanView = lazy(() => import('./plan/PlanView'));
@@ -64,6 +67,27 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
   );
   const { messages, turn, lastGood, turnAt, status, send } = useConversation(assistant);
   const thinking = status === 'thinking';
+  const speech = useSpeech((text) => void send(text));
+  const { speak, cancel: stopSpeaking, error: micError } = speech;
+
+  // Speak each new assistant reply once; chip labels and user text are never spoken.
+  const spoken = useRef<ChatMessage | null>(null);
+  useEffect(() => {
+    const last = messages.at(-1);
+    if (last?.role !== 'model' || last === spoken.current) return;
+    spoken.current = last;
+    speak(last.text);
+  }, [messages, speak]);
+
+  useEffect(() => {
+    if (micError === 'not-allowed') document.getElementById('chat-input')?.focus();
+  }, [micError]);
+
+  // Every typed or tapped message silences the voice first.
+  function say(text: string) {
+    stopSpeaking();
+    void send(text);
+  }
 
   // A turn with no air and no failure (picking a place, not found) keeps showing the last good reading.
   const shown = turn && !turn.air && turn.notice !== 'airUnavailable' ? lastGood : turn;
@@ -73,7 +97,7 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
   else if (shown?.notice === 'airUnavailable') airStatus = 'unavailable';
 
   function pick(label: string) {
-    void send(label);
+    say(label);
     // The chip that was clicked is replaced by the next set, so hand focus back to the input.
     document.getElementById('chat-input')?.focus();
   }
@@ -116,7 +140,8 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
             </p>
           )}
           <Chips items={turn?.chips ?? []} onPick={pick} />
-          <ChatInput onSend={(text) => void send(text)} busy={thinking} />
+          <MicButton speech={speech} />
+          <ChatInput onSend={say} busy={thinking} />
         </section>
         <div className={styles.plan}>
           <AqiCard
