@@ -6,7 +6,7 @@ import { buildDayPlan } from '../engine/planner';
 import { t } from '../i18n/i18n';
 import { istNow } from '../time';
 import { GEMINI_TURN_BUDGET_MS } from '../config';
-import { allowedNumbers, extractNumbers, guardReply } from './numberGuard';
+import { allowedNumbers, extractNumbers, guardReply, readings } from './numberGuard';
 import {
   ProfileSchema,
   type AirReading,
@@ -43,7 +43,7 @@ export function createGeminiAssistant(deps: {
     let forecast: Forecast | null = null;
     let plan: DayPlan | null = null;
     let candidates: Location[] = [];
-    // Profile numbers count only if the user wrote them or the profile held them before this turn.
+    // Numbers the user typed anywhere in the window; model-written profile values never count.
     const userNumbers = messages
       .filter((m) => m.role === 'user')
       .flatMap((m) => extractNumbers(m.text));
@@ -206,13 +206,11 @@ export function createGeminiAssistant(deps: {
       if (signal.aborted) throw new LlmError('geminiDown');
       if (res.calls.length === 0) {
         if (!res.text) break;
+        const shown = { air, forecast, plan };
         const guard = guardReply(
           res.text,
-          new Set([
-            ...allowedNumbers({ air, forecast, plan }, profile),
-            ...userNumbers,
-            ...swapNumbers,
-          ]),
+          new Set([...allowedNumbers(shown, userNumbers), ...swapNumbers]),
+          readings(shown),
         );
         if (!guard.guarded) return turn({ reply: res.text });
         // A number no tool produced: swap in the template (the cards still show real data).

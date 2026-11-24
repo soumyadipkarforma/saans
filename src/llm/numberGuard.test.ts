@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildDayPlan } from '../engine/planner';
 import type { AirReading, AssistantTurn, Profile } from '../types';
-import { allowedNumbers, extractNumbers, guardReply } from './numberGuard';
+import { allowedNumbers, extractNumbers, guardReply, readings } from './numberGuard';
 
 const air: AirReading = {
   aqi: 312,
@@ -38,7 +38,7 @@ const plan = buildDayPlan({
   now: '2026-11-22T08:00',
 });
 const turn: Partial<AssistantTurn> = { air, plan };
-const allowed = allowedNumbers(turn, profile);
+const allowed = allowedNumbers(turn, [8, 14, 35]); // as if the user wrote them
 
 describe('extractNumbers', () => {
   it('reads ASCII digits, decimals and percents', () => {
@@ -77,7 +77,7 @@ describe('guardReply', () => {
 });
 
 describe('allowedNumbers', () => {
-  it('includes AQI, PM values, ages, distances, durations and small counts', () => {
+  it('includes AQI, PM values, user-typed numbers and small counts', () => {
     for (const n of [312, 180.4, 180, 260, 8, 14, 35, 1, 10]) expect(allowed.has(n)).toBe(true);
     expect(allowed.has(999)).toBe(false);
   });
@@ -108,11 +108,11 @@ describe('allowedNumbers', () => {
         fetchedAt: air.fetchedAt,
       },
     };
-    const set = allowedNumbers(swapped, profile);
+    const set = allowedNumbers(swapped);
     for (const n of [12.3, 38, 1.25, 91]) expect(set.has(n)).toBe(true);
   });
   it('works for an empty turn', () => {
-    expect(allowedNumbers({}, { household: [], activities: [] }).has(5)).toBe(true);
+    expect(allowedNumbers({}).has(5)).toBe(true);
   });
 });
 
@@ -147,12 +147,60 @@ describe('timestamps and scale facts', () => {
   const captured =
     "Air in Pune is satisfactory, with a CAMS via Open-Meteo modelled estimate from Nov 24, 4:00 PM. It means air is generally acceptable, though sensitive groups like your dad may experience minor concerns; please follow his doctor's advice.";
   it('passes the real captured Gemini sentence', () => {
-    const set = allowedNumbers({ air: pune }, { household: [], activities: [] });
+    const set = allowedNumbers({ air: pune });
     expect(guardReply(captured, set).guarded).toBe(false);
   });
   it('allows band boundaries and the 24-hour period but not other numbers', () => {
-    const set = allowedNumbers({}, { household: [], activities: [] });
+    const set = allowedNumbers({});
     expect(guardReply('Poor is 200 to 300 over a 24-hour mean', set).guarded).toBe(false);
     expect(guardReply('Poor is 213 today', set).guarded).toBe(true);
+  });
+});
+
+describe('AQI and PM context', () => {
+  const real: AirReading = { ...air, aqi: 85, pm25: 41.2, pm10: 90 };
+  const turn85 = { air: real };
+  const check = (text: string) =>
+    guardReply(text, allowedNumbers(turn85), readings(turn85)).guarded;
+  it('guards scale facts attached to AQI or a pollutant', () => {
+    expect(check('The AQI is 300')).toBe(true);
+    expect(check('AQI is 200 now')).toBe(true);
+    expect(check('The AQI is 24')).toBe(true);
+    expect(check('एक्यूआई ३०० है')).toBe(true);
+    expect(check('PM2.5 is 999')).toBe(true);
+    expect(check('PM 10 is 300')).toBe(true);
+    expect(check('AQI is three hundred')).toBe(true);
+  });
+  it('accepts the real readings and scale phrases', () => {
+    expect(check('AQI 85, satisfactory')).toBe(false);
+    expect(check('The AQI of 85 is fine')).toBe(false);
+    expect(check('PM2.5 is 41 and PM10 is 90')).toBe(false);
+    expect(check('on the 0-500 AQI scale')).toBe(false);
+    expect(check('the AQI scale runs 0 to 500')).toBe(false);
+    expect(check('Poor air is 200 to 300 on the scale')).toBe(false);
+  });
+  it('with no reading in the turn, any number after AQI is guarded', () => {
+    expect(guardReply('AQI is 85', allowedNumbers({}), readings({})).guarded).toBe(true);
+  });
+  it('accepts a forecast PM2.5 value after PM2.5', () => {
+    const t = {
+      air: real,
+      forecast: {
+        hours: [{ time: '2026-11-24T18:00', pm25: 60 }],
+        source: 'CAMS via Open-Meteo' as const,
+        fetchedAt: real.fetchedAt,
+      },
+    };
+    expect(guardReply('PM2.5 near 60 at 6pm', allowedNumbers(t), readings(t)).guarded).toBe(false);
+  });
+});
+
+describe('more number words', () => {
+  it('reads Hindi compounds and English plurals', () => {
+    expect(extractNumbers('पचपन')).toEqual([55]);
+    expect(extractNumbers('निन्यानवे')).toEqual([99]);
+    expect(extractNumbers('चौबीस घंटे')).toEqual([24]);
+    expect(extractNumbers('in the hundreds')).toEqual([100]);
+    expect(extractNumbers('two lakhs')).toEqual([200000]);
   });
 });

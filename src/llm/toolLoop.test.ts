@@ -224,6 +224,28 @@ describe('hardening', () => {
     expect(turn.guarded).toBe(true);
   });
 
+  it('a profile value the model set in turn 1 is not allowed in turn 2', async () => {
+    const first = scripted([
+      call('update_profile', { activities: [{ kind: 'commute', distanceKm: 77, mode: 'bus' }] }),
+      { text: 'Noted.' },
+    ]);
+    const t1 = await make(first.llm)({ messages: user('I commute'), ...withAir });
+    expect(t1.profile.activities[0]?.distanceKm).toBe(77);
+    const second = scripted([{ text: 'Your 77 km commute is long.' }]);
+    const t2 = await make(second.llm)({
+      messages: user('any tips?'),
+      lang: 'en',
+      now,
+      profile: t1.profile,
+    });
+    expect(t2.guarded).toBe(true);
+  });
+
+  it('a made-up AQI that matches a scale fact is guarded', async () => {
+    const { llm } = scripted([call('get_air_quality'), { text: 'The AQI is 300 right now.' }]);
+    expect((await make(llm)({ messages: user('aqi'), ...withAir })).guarded).toBe(true);
+  });
+
   it('allows a number the user wrote, and a spelled-out reading is guarded', async () => {
     const said = scripted([{ text: 'A 14 km trip is fine.' }]);
     expect((await make(said.llm)({ messages: user('my trip is 14 km'), ...withAir })).guarded).toBe(
