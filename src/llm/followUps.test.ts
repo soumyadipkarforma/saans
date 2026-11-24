@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bandFor, computeAqi } from '../engine/aqi';
-import { DEFAULT_TRIP_KM } from '../engine/constants';
+import { AQI_MAX, DEFAULT_TRIP_KM } from '../engine/constants';
 import { tripCo2Kg } from '../engine/emissions';
 import { round, tripExposureUg } from '../engine/impact';
 import type { AirReading, Forecast, Profile } from '../types';
@@ -125,7 +125,10 @@ describe('explainAqi', () => {
 
 describe('numbers in follow-up replies', () => {
   it('only come from the turn data or the question itself', () => {
+    // 0 and AQI_MAX are engine scale constants, fine in code-written text.
     const extra = [
+      0,
+      AQI_MAX,
       17,
       5,
       round(tripExposureUg(DEFAULT_TRIP_KM.commute, 'petrolCar', 80, 'adult'), 1),

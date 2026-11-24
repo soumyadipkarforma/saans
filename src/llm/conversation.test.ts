@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AQI_MAX } from '../engine/constants';
 import { minutesSince } from '../time';
 import type { AirReading, AssistantTurn, ChatMessage, Forecast, Location, Profile } from '../types';
 import { createDegradedAssistant } from './degradedAssistant';
@@ -140,7 +141,8 @@ describe('no-key conversation', () => {
       await c.say('Explain the AQI'),
     ];
     for (const turn of turns) {
-      const extra = [minutesSince(baseAir.observedAt, now), 17, 5];
+      // 0 and AQI_MAX are engine scale constants, fine in code-written text.
+      const extra = [minutesSince(baseAir.observedAt, now), 17, 5, 0, AQI_MAX];
       const g = guardReply(turn.reply, allowedNumbers(turn, extra), readings(turn));
       expect(g.guarded, turn.reply).toBe(false);
     }
