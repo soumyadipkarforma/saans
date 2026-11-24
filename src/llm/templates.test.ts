@@ -88,6 +88,17 @@ describe('parseQuick', () => {
     expect(parseQuick('कोई संवेदनशील नहीं', empty).household).toHaveLength(1);
   });
 
+  it('adds outdoor activities without giving them the travel mode', () => {
+    const out = parseQuick('Evening stroll', base).activities;
+    expect(out?.map((a) => a.kind)).toEqual(['commute', 'walk']);
+    expect(parseQuick('Playing outdoors', empty).activities?.[0]).toMatchObject({ kind: 'play' });
+    expect(parseQuick('School run', empty).activities?.[0]).toMatchObject({ kind: 'schoolRun' });
+    expect(parseQuick('शाम की सैर', empty).activities?.[0]).toMatchObject({ kind: 'walk' });
+    const mode = parseQuick('Metro', { ...empty, activities: out ?? [] }).activities;
+    expect(mode?.map((a) => a.mode)).toEqual(['metro', undefined]);
+    expect(parseQuick('Evening stroll', { ...empty, activities: out ?? [] })).toEqual({});
+  });
+
   it('returns nothing for a city name or other text', () => {
     expect(parseQuick('Mumbai', empty)).toEqual({});
     expect(parseQuick('Explain the AQI', empty)).toEqual({});

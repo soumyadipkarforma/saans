@@ -3,9 +3,11 @@ import type { searchIndia } from '../data/geocode';
 import { buildDayPlan } from '../engine/planner';
 import { t } from '../i18n/i18n';
 import { istNow } from '../time';
-import type { AssistantTurn, Lang, Location, Profile } from '../types';
+import type { AssistantTurn, Location, Profile } from '../types';
 import type { Assistant } from '../chat/useConversation';
-import { chipsFor, FOLLOW_UP_CHIPS, parseQuick, templateReply } from './templates';
+import { acknowledge, airLine, isChip, nextStep } from './dialogue';
+import { answerFollowUp, followUpKind } from './followUps';
+import { chipsFor, FOLLOW_UP_CHIPS, parseQuick } from './templates';
 
 type AirService = ReturnType<typeof createAirService>;
 
@@ -13,11 +15,6 @@ export const label = (l: Location) => (l.state ? `${l.city}, ${l.state}` : l.cit
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 // Matches the geocoder's own cap; candidate chips such as "Delhi, National Capital Territory of Delhi" are long.
 const MAX_PLACE_CHARS = 80;
-
-// Chip phrases are matched in both languages so a language switch never turns one into a search.
-function isFollowUpChip(text: string): boolean {
-  return (['en', 'hi'] as Lang[]).some((l) => FOLLOW_UP_CHIPS.some((k) => text === t(k, {}, l)));
-}
 
 // A candidate chip reads "City, State" and selects that exact place; plain text is a name search.
 export async function findPlace(
@@ -39,14 +36,16 @@ export function createDegradedAssistant(deps: {
   geocode: typeof searchIndia;
   air: AirService;
 }): Assistant {
-  return async ({ messages, profile, lang, now }) => {
+  return async ({ messages, profile, lang, now, prev = null }) => {
     const text =
       messages
         .filter((m) => m.role === 'user')
         .at(-1)
         ?.text.trim() ?? '';
-    const followUp = isFollowUpChip(text);
-    const quick = followUp ? {} : parseQuick(text, profile);
+    const turns = messages.filter((m) => m.role === 'user').length;
+    const kind = followUpKind(text);
+    const followUp = kind !== null || isChip('chip.noOutdoors', text);
+    const quick = kind ? {} : parseQuick(text, profile);
     const hasQuick = Object.keys(quick).length > 0;
     let next: Profile = { ...profile, ...quick };
     const say = (key: string) => t(key, {}, lang);
@@ -110,14 +109,37 @@ export function createDegradedAssistant(deps: {
               household: [{ group: 'adult' as const, respiratory: false, pregnant: false }],
             };
       const plan = buildDayPlan({ profile: planProfile, air, forecast, now: istNow(now) });
-      const prefix = followUp ? `${say('reply.followUp')} ` : '';
       const assumed =
-        quick.activities && profile.activities.length === 0
+        quick.activities?.some((a) => a.kind === 'commute' && a.mode) &&
+        !profile.activities.some((a) => a.kind === 'commute')
           ? ` ${say('reply.assumedCommute')}`
           : '';
+      if (kind) {
+        const r = answerFollowUp(kind, {
+          lang,
+          city: location.city,
+          air,
+          forecast,
+          profile: next,
+          now: istNow(now),
+        });
+        return turn({
+          reply: `${r.reply}${hint}`,
+          chips: FOLLOW_UP_CHIPS.map(say),
+          air,
+          forecast,
+          plan: r.plan ?? plan,
+        });
+      }
+      const step = nextStep({ lang, turns, profile: next, prev });
+      const parts = [
+        acknowledge({ lang, turns, text, before: profile, after: next }),
+        airLine(lang, air, location.city, now, prev, location),
+        step.text,
+      ];
       return turn({
-        reply: `${prefix}${templateReply(lang, air, plan, location.city)}${assumed}${hint}`,
-        chips: chipsFor(next, plan, lang),
+        reply: `${parts.filter(Boolean).join(' ')}${assumed}${hint}`,
+        chips: step.chips,
         air,
         forecast,
         plan,

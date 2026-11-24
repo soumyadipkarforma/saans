@@ -4,13 +4,13 @@ import { tripCo2Kg, tripDurationMin } from './emissions';
 import { environmentForMode, inhaledDoseUg } from './exposure';
 
 // Rounds to `dp` places and turns -0 into 0 so the output never shows "-0".
-function round(x: number, dp: number): number {
+export function round(x: number, dp: number): number {
   const scale = 10 ** dp;
   const rounded = Math.round(x * scale) / scale;
   return rounded === 0 ? 0 : rounded;
 }
 
-function tripExposureUg(
+export function tripExposureUg(
   distanceKm: number,
   mode: TravelMode,
   pm25: number,

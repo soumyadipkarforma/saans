@@ -13,6 +13,8 @@ export type Assistant = (input: {
   profile: Profile;
   lang: Lang;
   now: Date;
+  // The previous turn, so the no-key assistant can avoid repeating itself; Gemini ignores it.
+  prev?: AssistantTurn | null;
 }) => Promise<AssistantTurn>;
 
 const STORAGE_KEY = 'saans.profile';
@@ -65,7 +67,7 @@ export function useConversation(assistant: Assistant) {
       setStatus('thinking');
       const now = new Date();
       try {
-        const result = await assistant({ messages: withUser, profile, lang, now });
+        const result = await assistant({ messages: withUser, profile, lang, now, prev: turn });
         setTurn(result);
         if (result.air) setLastGood(result);
         setTurnAt(now);
@@ -82,7 +84,7 @@ export function useConversation(assistant: Assistant) {
         setStatus('idle');
       }
     },
-    [assistant, lang, messages, profile, setProfile],
+    [assistant, lang, messages, profile, setProfile, turn],
   );
 
   const reset = useCallback(() => {

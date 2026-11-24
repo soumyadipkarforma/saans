@@ -230,13 +230,13 @@ describe('degraded assistant', () => {
     expect(turn.profile.location).toEqual(delhi);
   });
 
-  it('the child follow-up chip leaves the household alone and says it only refreshes', async () => {
+  it('the child follow-up chip leaves the household alone and answers about 5 pm', async () => {
     const { ask, geocode } = setup();
     const full = { location: delhi, household: [adult], activities: [commute] };
     const turn = await ask('Can my child play outside at 5?', full);
     expect(turn.profile.household).toEqual([adult]);
     expect(turn.plan?.sensitive).toBe(false);
-    expect(turn.reply).toMatch(/^Without a Gemini key I can only refresh the plan\./);
+    expect(turn.reply).toContain('5 pm');
     expect(geocode).not.toHaveBeenCalled();
   });
 

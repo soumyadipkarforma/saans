@@ -1,16 +1,11 @@
 import { useT } from '../i18n/i18n';
+import { minutesSince } from '../time';
 import type { AirReading } from '../types';
 import styles from './SourceBadge.module.css';
 
 interface Props {
   air: AirReading;
   now: Date;
-}
-
-// Whole minutes since the fetch; a clock behind the fetch time reads as "just now", not negative.
-function minutesSince(iso: string, now: Date): number {
-  const elapsed = (now.getTime() - Date.parse(iso)) / 60_000;
-  return Number.isFinite(elapsed) ? Math.max(0, Math.floor(elapsed)) : 0;
 }
 
 export function SourceBadge({ air, now }: Props) {

@@ -1,6 +1,7 @@
 import { t } from '../i18n/i18n';
 import type {
   Activity,
+  ActivityKind,
   AirReading,
   DayPlan,
   Lang,
@@ -16,8 +17,9 @@ export function templateReply(lang: Lang, air: AirReading, plan: DayPlan, city: 
   return t(key, { city, band: t(`band.${air.band}`, {}, lang), aqi: air.aqi }, lang);
 }
 
-const HOUSEHOLD_CHIPS = ['chip.noneSensitive', 'chip.child', 'chip.elder'];
-const TRAVEL_CHIPS = ['chip.car', 'chip.metro', 'chip.bus', 'chip.twoWheeler'];
+export const HOUSEHOLD_CHIPS = ['chip.noneSensitive', 'chip.child', 'chip.elder'];
+export const TRAVEL_CHIPS = ['chip.car', 'chip.metro', 'chip.bus', 'chip.twoWheeler'];
+export const OUTDOOR_CHIPS = ['chip.stroll', 'chip.play', 'chip.schoolRun', 'chip.noOutdoors'];
 export const FOLLOW_UP_CHIPS = ['chip.wfh', 'chip.childPlay', 'chip.explain'];
 
 // Ask for the missing slot first (household, then travel); once a plan exists, offer follow-ups.
@@ -39,6 +41,13 @@ const MODES: [RegExp, TravelMode][] = [
   [/two[- ]?wheeler|\b(?:bike|scooter)\b|दोपहिया/i, 'twoWheeler'],
   [/\bwalk\b|टहल/i, 'walk'],
 ];
+// "Stroll" and "play" avoid the word "walk", which already means a walking commute above.
+const OUTDOORS: [RegExp, ActivityKind][] = [
+  [/\bstroll|सैर/i, 'walk'],
+  [/\bplay|खेल/i, 'play'],
+  [/school ?run|स्कूल/i, 'schoolRun'],
+];
+const isTrip = (a: Activity) => a.kind === 'commute' || a.kind === 'schoolRun';
 const NO_ONE = /\bno ?one\b|\bnobody\b|कोई.*नहीं/i;
 const CHILD = /\bchild|\bkid|बच्च/i;
 const ELDER = /\belder|\bold (?:man|woman|person)|बुज़ुर्ग|बुजुर्ग|दादा|दादी/i;
@@ -76,10 +85,16 @@ export function parseQuick(text: string, profile: Profile): Partial<Profile> {
     out.household = members.some((m) => m.group === 'adult') ? members : [adult, ...members];
   }
 
+  let activities = profile.activities;
+  const outdoor = OUTDOORS.filter(
+    ([re, kind]) => re.test(text) && !activities.some((a) => a.kind === kind),
+  ).map(([, kind]): Activity => ({ kind, durationMin: 30, participants: [0], flexible: true }));
+  if (outdoor.length > 0) out.activities = activities = [...activities, ...outdoor];
+
   const mode = MODES.find(([re]) => re.test(text))?.[1];
   if (mode) {
-    const base = profile.activities.length > 0 ? profile.activities : [DEFAULT_COMMUTE];
-    out.activities = base.map((a) => ({ ...a, mode }));
+    const trips = activities.some(isTrip) ? activities : [...activities, DEFAULT_COMMUTE];
+    out.activities = trips.map((a) => (isTrip(a) ? { ...a, mode } : a));
   }
   return out;
 }
