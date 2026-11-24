@@ -1,6 +1,6 @@
 import { act, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { Assistant } from './chat/useConversation';
 import { buildDayPlan } from './engine/planner';
@@ -166,5 +166,55 @@ describe('App shell', () => {
 
     await user.click(english);
     expect(document.documentElement.lang).toBe('en');
+  });
+
+  describe('AI key', () => {
+    beforeAll(() => {
+      HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+        this.setAttribute('open', '');
+      };
+      HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+        this.removeAttribute('open');
+      };
+    });
+    afterEach(() => sessionStorage.clear());
+
+    it('shows AI: off, opens the key dialog, saves a key, and returns focus to the button', async () => {
+      const user = userEvent.setup();
+      render(<App assistant={vi.fn()} />);
+      const button = screen.getByRole('button', { name: 'AI: off' });
+      expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+      await user.click(button);
+      await user.type(screen.getByLabelText('Your Gemini API key'), 'AIza-0123456789-abcdefghij');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(screen.getByRole('button', { name: 'AI: on' })).toHaveFocus();
+      expect(sessionStorage.getItem('saans.geminiKey')).toBe('AIza-0123456789-abcdefghij');
+    });
+
+    it('starts as AI: on when a key is already stored', () => {
+      sessionStorage.setItem('saans.geminiKey', 'AIza-0123456789-abcdefghij');
+      render(<App assistant={vi.fn()} />);
+      expect(screen.getByRole('button', { name: 'AI: on' })).toBeInTheDocument();
+    });
+
+    it('shows a friendly notice when the assistant reports one', async () => {
+      const user = userEvent.setup();
+      const assistant: Assistant = () =>
+        Promise.resolve({
+          reply: 'Which city?',
+          chips: [],
+          profile: { household: [], activities: [] },
+          air: null,
+          forecast: null,
+          plan: null,
+          candidates: [],
+          degraded: true,
+          guarded: false,
+          notice: 'quota',
+        });
+      render(<App assistant={assistant} />);
+      await user.type(screen.getByLabelText('Your message'), 'hi{Enter}');
+      expect(await screen.findByText(/usage limit/)).toBeInTheDocument();
+    });
   });
 });

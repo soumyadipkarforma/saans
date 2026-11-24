@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import pkg from '../package.json';
 import styles from './App.module.css';
 import { ChatInput } from './chat/ChatInput';
@@ -8,7 +8,9 @@ import { useConversation, type Assistant } from './chat/useConversation';
 import { createAirService } from './data/airService';
 import { searchIndia } from './data/geocode';
 import { useLang, useT } from './i18n/i18n';
-import { createDegradedAssistant } from './llm/degradedAssistant';
+import { KeyDialog } from './key/KeyDialog';
+import { keyStore } from './key/keyStore';
+import { createAssistant } from './llm/assistant';
 import { AqiCard, type AirStatus } from './plan/AqiCard';
 
 // The plan screen is only needed once the plan column is shown, so it loads on demand.
@@ -16,8 +18,7 @@ const PlanView = lazy(() => import('./plan/PlanView'));
 
 // placeholder: replace with the repository URL before launch
 const REPO_URL = 'https://github.com/';
-// The one place the assistant is chosen; a later task swaps in the Gemini-backed one.
-const defaultAssistant = createDegradedAssistant({ geocode: searchIndia, air: createAirService() });
+const airService = createAirService();
 const LANGS = ['en', 'hi'] as const;
 
 function LanguageToggle() {
@@ -41,13 +42,31 @@ function LanguageToggle() {
   );
 }
 
-export function App({ assistant = defaultAssistant }: { assistant?: Assistant }) {
+export function App({ assistant: injected }: { assistant?: Assistant }) {
   const tr = useT();
+  const [keyOpen, setKeyOpen] = useState(false);
+  const [hasKey, setHasKey] = useState(() => keyStore.get() !== null);
+  const aiButton = useRef<HTMLButtonElement>(null);
+  // The one place the assistant is chosen: Gemini when a key is set, the template one otherwise.
+  const assistant = useMemo(
+    () =>
+      injected ??
+      createAssistant({
+        geocode: searchIndia,
+        air: airService,
+        keys: keyStore,
+        onKeyInvalid: () => {
+          setHasKey(false);
+          setKeyOpen(true);
+        },
+      }),
+    [injected],
+  );
   const { messages, turn, lastGood, turnAt, status, send } = useConversation(assistant);
   const thinking = status === 'thinking';
 
   // A turn with no air and no failure (picking a place, not found) keeps showing the last good reading.
-  const shown = turn && !turn.air && !turn.notice ? lastGood : turn;
+  const shown = turn && !turn.air && turn.notice !== 'airUnavailable' ? lastGood : turn;
   let airStatus: AirStatus = 'idle';
   if (thinking) airStatus = 'loading';
   else if (shown?.air) airStatus = 'ready';
@@ -66,12 +85,36 @@ export function App({ assistant = defaultAssistant }: { assistant?: Assistant })
       </a>
       <header className={styles.header}>
         <h1>{tr('app.name')}</h1>
-        <LanguageToggle />
+        <div className={styles.headerTools}>
+          <button
+            ref={aiButton}
+            type="button"
+            aria-haspopup="dialog"
+            className={styles.aiButton}
+            onClick={() => setKeyOpen(true)}
+          >
+            {tr(hasKey ? 'header.aiOn' : 'header.aiOff')}
+          </button>
+          <LanguageToggle />
+        </div>
       </header>
+      <KeyDialog
+        open={keyOpen}
+        onChange={setHasKey}
+        onClose={() => {
+          setKeyOpen(false);
+          aiButton.current?.focus();
+        }}
+      />
       <main id="main" tabIndex={-1} className={styles.layout}>
         <section aria-labelledby="chat-heading" className={styles.card}>
           <h2 id="chat-heading">{tr('chat.title')}</h2>
           <MessageList messages={messages} thinking={thinking} />
+          {turn?.notice && turn.notice !== 'airUnavailable' && (
+            <p role="status" className={styles.muted}>
+              {tr(`notice.${turn.notice}`)}
+            </p>
+          )}
           <Chips items={turn?.chips ?? []} onPick={pick} />
           <ChatInput onSend={(text) => void send(text)} busy={thinking} />
         </section>

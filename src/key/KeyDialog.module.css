@@ -1,0 +1,57 @@
+.dialog {
+  width: min(32rem, calc(100vw - 2 * var(--gutter)));
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.input {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-min);
+  margin-top: 0.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.note {
+  color: var(--color-muted);
+}
+
+.error {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.button,
+.primary {
+  min-height: var(--touch-min);
+  padding: 0 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--color-text);
+  color: var(--color-surface);
+}

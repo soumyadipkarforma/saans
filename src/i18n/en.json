@@ -119,5 +119,18 @@
   "reply.airSensitive": "Air in {city} is {band}, AQI {aqi}. Someone at home is sensitive, so I kept the advice cautious; source: CAMS via Open-Meteo, a modelled estimate.",
   "reply.changeCity": "To change city, type its name.",
   "reply.followUp": "Without a Gemini key I can only refresh the plan.",
-  "reply.assumedCommute": "I am assuming a 10 km commute at 9:00."
+  "reply.assumedCommute": "I am assuming a 10 km commute at 9:00.",
+  "header.aiOn": "AI: on",
+  "header.aiOff": "AI: off",
+  "key.title": "Gemini key (optional)",
+  "key.label": "Your Gemini API key",
+  "key.get": "Get a free key from Google AI Studio",
+  "key.privacy": "Your key stays in this browser tab and is sent only to Google. It is forgotten when you close the tab.",
+  "key.save": "Save",
+  "key.remove": "Remove key",
+  "key.skip": "Continue without AI",
+  "key.tooShort": "That key looks too short. Please paste the whole key.",
+  "notice.keyInvalid": "Your Gemini key was not accepted, so it was removed. Add a valid key to use AI again.",
+  "notice.quota": "Your Gemini key has hit its usage limit. Showing the simple answer instead.",
+  "notice.geminiDown": "Gemini is not responding right now. Showing the simple answer instead."
 }
