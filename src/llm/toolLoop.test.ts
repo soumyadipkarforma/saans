@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { createAirService } from '../data/airService';
 import type { AirReading, Forecast, Location, Profile } from '../types';
-import type { LlmClient } from './llmClient';
+import { LlmError, type LlmClient } from './llmClient';
 import { systemPrompt } from './systemPrompt';
 import { computeSwapImpact } from '../engine/impact';
 import { createGeminiAssistant } from './toolLoop';
@@ -10,7 +10,9 @@ const delhi: Location = { city: 'Delhi', state: 'Delhi', lat: 28.61, lon: 77.21 
 const mumbai: Location = { city: 'Mumbai', state: 'Maharashtra', lat: 19.07, lon: 72.87 };
 const auMh: Location = { city: 'Aurangabad', state: 'Maharashtra', lat: 19.88, lon: 75.34 };
 const auBr: Location = { city: 'Aurangabad', state: 'Bihar', lat: 24.75, lon: 84.37 };
+const pune: Location = { city: 'Pune', state: 'Maharashtra', lat: 18.52, lon: 73.86 };
 const places: Record<string, Location[]> = {
+  Pune: [pune, { city: 'Puneta', lat: 25, lon: 85 }, { city: 'Puneir', lat: 24, lon: 84 }],
   Delhi: [delhi],
   Mumbai: [mumbai],
   Aurangabad: [auMh, auBr],
@@ -200,6 +202,69 @@ describe('number guard in the loop', () => {
     const turn = await make(llm)({ messages: user('metro?'), ...withAir });
     expect(turn.guarded).toBe(false);
     expect(turn.reply).toContain(String(pct));
+  });
+});
+
+describe('hardening', () => {
+  const withAir = base({ ...empty, location: delhi });
+
+  it('picks the single exact city without asking', async () => {
+    const { llm } = scripted([call('update_profile', { place: 'Pune' }), { text: 'Noted.' }]);
+    const turn = await make(llm)({ messages: user('Pune'), ...base() });
+    expect(turn.profile.location).toEqual(pune);
+    expect(turn.candidates).toEqual([]);
+  });
+
+  it('does not let the model launder a number through update_profile', async () => {
+    const { llm } = scripted([
+      call('update_profile', { activities: [{ kind: 'commute', distanceKm: 77, mode: 'bus' }] }),
+      { text: 'That is a 77 km trip.' },
+    ]);
+    const turn = await make(llm)({ messages: user('I commute'), ...withAir });
+    expect(turn.guarded).toBe(true);
+  });
+
+  it('allows a number the user wrote, and a spelled-out reading is guarded', async () => {
+    const said = scripted([{ text: 'A 14 km trip is fine.' }]);
+    expect((await make(said.llm)({ messages: user('my trip is 14 km'), ...withAir })).guarded).toBe(
+      false,
+    );
+    const words = scripted([call('get_air_quality'), { text: 'AQI is two hundred fifty.' }]);
+    expect((await make(words.llm)({ messages: user('aqi'), ...withAir })).guarded).toBe(true);
+  });
+
+  it('caps tool arguments: a 300 km distance is an invalid-arguments result', async () => {
+    const { llm, seen } = scripted([
+      call('update_profile', { activities: [{ kind: 'commute', distanceKm: 300 }] }),
+      { text: 'Which city?' },
+    ]);
+    await make(llm)({ messages: user('hi'), ...base() });
+    expect(JSON.stringify(seen[1]?.contents)).toContain('Invalid arguments');
+  });
+
+  it('gives up when the total time budget runs out', async () => {
+    const stuck: LlmClient = {
+      generate: (req) =>
+        new Promise((_, reject) => {
+          req.signal?.addEventListener('abort', () => reject(new LlmError('geminiDown')));
+        }),
+    };
+    const assistant = createGeminiAssistant({ llm: stuck, geocode, air: airService, budgetMs: 20 });
+    await expect(assistant({ messages: user('hi'), ...base() })).rejects.toMatchObject({
+      code: 'geminiDown',
+    });
+  });
+
+  it('tells the model what is already known, in words only', () => {
+    const prompt = systemPrompt('en', {
+      location: delhi,
+      household: [{ group: 'child', age: 8, respiratory: true, pregnant: false }],
+      activities: [{ kind: 'commute', mode: 'bus', participants: [0], flexible: false }],
+    });
+    expect(prompt).toContain(
+      'Already known: city Delhi; household child with a lung condition; activities commute by bus.',
+    );
+    expect(prompt).not.toContain('8');
   });
 });
 

@@ -115,3 +115,44 @@ describe('allowedNumbers', () => {
     expect(allowedNumbers({}, { household: [], activities: [] }).has(5)).toBe(true);
   });
 });
+
+describe('number words and fullwidth digits', () => {
+  it('reads words for 11 and up, compound and Hindi', () => {
+    expect(extractNumbers('AQI is three hundred')).toEqual([300]);
+    expect(extractNumbers('twenty-one and one thousand two hundred')).toEqual([21, 1200]);
+    expect(extractNumbers('तीन सौ')).toEqual([300]);
+    expect(extractNumbers('दो हज़ार पचास')).toEqual([2050]);
+    expect(extractNumbers('चालीस')).toEqual([40]);
+  });
+  it('leaves one to ten alone', () => {
+    expect(extractNumbers('one or two kids, ten minutes, तीन लोग')).toEqual([]);
+  });
+  it('reads fullwidth digits', () => {
+    expect(extractNumbers('AQI ９９９')).toEqual([999]);
+  });
+  it('guards a spelled-out reading', () => {
+    expect(guardReply('AQI is three hundred', new Set([312])).guarded).toBe(true);
+    expect(guardReply('तीन सौ', new Set([312])).guarded).toBe(true);
+    expect(guardReply('one or two hours', new Set([312])).guarded).toBe(false);
+  });
+});
+
+describe('timestamps and scale facts', () => {
+  const pune: AirReading = {
+    ...air,
+    aqi: 85,
+    observedAt: '2026-11-24T16:00:00+05:30',
+    fetchedAt: '2026-11-24T16:05:00+05:30',
+  };
+  const captured =
+    "Air in Pune is satisfactory, with a CAMS via Open-Meteo modelled estimate from Nov 24, 4:00 PM. It means air is generally acceptable, though sensitive groups like your dad may experience minor concerns; please follow his doctor's advice.";
+  it('passes the real captured Gemini sentence', () => {
+    const set = allowedNumbers({ air: pune }, { household: [], activities: [] });
+    expect(guardReply(captured, set).guarded).toBe(false);
+  });
+  it('allows band boundaries and the 24-hour period but not other numbers', () => {
+    const set = allowedNumbers({}, { household: [], activities: [] });
+    expect(guardReply('Poor is 200 to 300 over a 24-hour mean', set).guarded).toBe(false);
+    expect(guardReply('Poor is 213 today', set).guarded).toBe(true);
+  });
+});

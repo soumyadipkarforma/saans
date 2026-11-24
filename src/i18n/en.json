@@ -132,5 +132,6 @@
   "key.tooShort": "That key looks too short. Please paste the whole key.",
   "notice.keyInvalid": "Your Gemini key was not accepted, so it was removed. Add a valid key to use AI again.",
   "notice.quota": "Your Gemini key has hit its usage limit. Showing the simple answer instead.",
-  "notice.geminiDown": "Gemini is not responding right now. Showing the simple answer instead."
+  "notice.geminiDown": "Gemini is not responding right now. Showing the simple answer instead.",
+  "notice.rateLimited": "You are sending messages quickly, so this answer is the simple one. AI replies resume in a minute."
 }

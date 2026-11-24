@@ -5,7 +5,8 @@ import { computeSwapImpact } from '../engine/impact';
 import { buildDayPlan } from '../engine/planner';
 import { t } from '../i18n/i18n';
 import { istNow } from '../time';
-import { allowedNumbers, guardReply } from './numberGuard';
+import { GEMINI_TURN_BUDGET_MS } from '../config';
+import { allowedNumbers, extractNumbers, guardReply } from './numberGuard';
 import {
   ProfileSchema,
   type AirReading,
@@ -16,7 +17,7 @@ import {
   type Profile,
 } from '../types';
 import { findPlace, label } from './degradedAssistant';
-import type { LlmClient } from './llmClient';
+import { LlmError, type LlmClient } from './llmClient';
 import { systemPrompt } from './systemPrompt';
 import { chipsFor, FOLLOW_UP_CHIPS, templateReply } from './templates';
 import { SwapArgs, toolDeclarations, UpdateProfileArgs } from './tools';
@@ -30,13 +31,22 @@ export function createGeminiAssistant(deps: {
   llm: LlmClient;
   geocode: typeof searchIndia;
   air: AirService;
+  budgetMs?: number;
 }): Assistant {
-  return async ({ messages, profile, lang, now }) => {
+  const { budgetMs = GEMINI_TURN_BUDGET_MS } = deps;
+  const runTurn: (...a: [...Parameters<Assistant>, AbortSignal]) => ReturnType<Assistant> = async (
+    { messages, profile, lang, now },
+    signal,
+  ) => {
     let next: Profile = profile;
     let air: AirReading | null = null;
     let forecast: Forecast | null = null;
     let plan: DayPlan | null = null;
     let candidates: Location[] = [];
+    // Profile numbers count only if the user wrote them or the profile held them before this turn.
+    const userNumbers = messages
+      .filter((m) => m.role === 'user')
+      .flatMap((m) => extractNumbers(m.text));
     const swapNumbers: number[] = []; // swap results are engine output the model may quote
     const say = (key: string) => t(key, {}, lang);
 
@@ -186,12 +196,23 @@ export function createGeminiAssistant(deps: {
     const contents: unknown[] = messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
     const tools = [{ functionDeclarations: toolDeclarations }];
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const res = await deps.llm.generate({ system: systemPrompt(lang), contents, tools });
+      if (signal.aborted) throw new LlmError('geminiDown');
+      const res = await deps.llm.generate({
+        system: systemPrompt(lang, next),
+        contents,
+        tools,
+        signal,
+      });
+      if (signal.aborted) throw new LlmError('geminiDown');
       if (res.calls.length === 0) {
         if (!res.text) break;
         const guard = guardReply(
           res.text,
-          new Set([...allowedNumbers({ air, forecast, plan }, next), ...swapNumbers]),
+          new Set([
+            ...allowedNumbers({ air, forecast, plan }, profile),
+            ...userNumbers,
+            ...swapNumbers,
+          ]),
         );
         if (!guard.guarded) return turn({ reply: res.text });
         // A number no tool produced: swap in the template (the cards still show real data).
@@ -220,5 +241,15 @@ export function createGeminiAssistant(deps: {
     }
 
     return fallback(false);
+  };
+
+  return async (input) => {
+    const budget = new AbortController();
+    const timer = setTimeout(() => budget.abort(), budgetMs);
+    try {
+      return await runTurn(input, budget.signal);
+    } finally {
+      clearTimeout(timer);
+    }
   };
 }

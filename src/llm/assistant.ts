@@ -36,7 +36,11 @@ export function createAssistant(deps: {
     const key = keys.get();
     const at = clock();
     sent = sent.filter((t) => at - t < WINDOW_MS);
-    if (!key || sent.length >= MAX_GEMINI_TURNS_PER_MINUTE) return degraded(input);
+    if (!key) return degraded(input);
+    if (sent.length >= MAX_GEMINI_TURNS_PER_MINUTE) {
+      const limited = await degraded(input);
+      return { ...limited, notice: limited.notice ?? 'rateLimited' };
+    }
     sent.push(at);
     try {
       return await createGeminiAssistant({ llm: makeLlm(key), geocode, air })(input);

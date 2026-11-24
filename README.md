@@ -40,7 +40,7 @@ flowchart LR
 | `src/engine/`                         | Pure calculation engine: CPCB AQI, inhaled PM2.5 dose, CO₂ per trip, swap impact, best/worst forecast hours, indoor tips, day planner. 100% test coverage. See [docs/engine.md](docs/engine.md) | Done          |
 | `src/data/`                           | Open-Meteo client: fetch with 5 s timeout and schema check, India-only place search, air quality + 48 h forecast, 10-minute cache                                                               | Done          |
 | `src/plan/`, `src/chat/`, `src/i18n/` | Screens: AQI card, day timeline, swap cards, at-home card, chat, English/Hindi                                                                                                                  | Not built yet |
-| `src/llm/`, `src/key/`                | Template assistant and Gemini assistant (bring your own key)                                                                                                                                    | Not built yet |
+| `src/llm/`, `src/key/`                | Template assistant and Gemini assistant (bring your own key)                                                                                                                                    | Done          |
 | `src/speech/`, `src/demo/`            | Voice input/output, demo families, "Try saying…" hints                                                                                                                                          | Not built yet |
 
 ## Data sources and attribution
@@ -53,7 +53,14 @@ flowchart LR
 ## Privacy and API keys
 
 - No account, no backend, no database. Nothing about you leaves your browser except the city or coordinates sent to Open-Meteo.
-- The Gemini key (optional, planned) is your own, kept in `sessionStorage` for the open tab only, and sent only to Google's Gemini API.
+- The Gemini key (optional) is your own, kept in `sessionStorage` for the open tab only, and sent only to Google's Gemini API.
+
+## Bring your own Gemini key
+
+The app works fully without a key (template answers). With your own key from [Google AI Studio](https://aistudio.google.com/apikey), Gemini answers follow-up questions in words. It calls the same tools the app uses, and a number guard replaces any reply that states a number no tool produced.
+
+- Model: `gemini-3.5-flash-lite` (the fastest stable Flash-family model; function calling confirmed on 2026-11-24). `gemini-3.8-flash` was tried as a fallback and returned 503 high demand, so there is no automatic fallback model: if Gemini fails, the app shows the template answer with a notice.
+- Limits: 10 Gemini turns per minute, 25 s total per turn.
 
 ## Not medical advice
 

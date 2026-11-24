@@ -168,6 +168,6 @@ export const AssistantTurnSchema = z.object({
   candidates: z.array(LocationSchema),
   degraded: z.boolean(),
   guarded: z.boolean(),
-  notice: z.enum(['keyInvalid', 'quota', 'geminiDown', 'airUnavailable']).optional(),
+  notice: z.enum(['keyInvalid', 'quota', 'geminiDown', 'rateLimited', 'airUnavailable']).optional(),
 });
 export type AssistantTurn = z.infer<typeof AssistantTurnSchema>;

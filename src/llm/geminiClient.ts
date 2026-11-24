@@ -24,7 +24,7 @@ export function geminiClient(
 ): LlmClient {
   const ai = new GoogleGenAI({ apiKey });
   return {
-    async generate({ system, contents, tools }) {
+    async generate({ system, contents, tools, signal }) {
       for (let attempt = 0; ; attempt++) {
         try {
           const res = await ai.models.generateContent({
@@ -35,6 +35,7 @@ export function geminiClient(
               // The SDK tool type is a deep union; tools.ts builds it, so a cast is safe here.
               tools: tools as never,
               httpOptions: { timeout: GEMINI_TIMEOUT_MS },
+              abortSignal: signal,
             },
           });
           const content = res.candidates?.[0]?.content;
@@ -49,7 +50,7 @@ export function geminiClient(
           return { text: text || undefined, calls, modelContent: content };
         } catch (e) {
           const { error, retry } = classify(e);
-          if (!retry || attempt >= 1) throw error;
+          if (!retry || attempt >= 1 || signal?.aborted) throw error;
           await new Promise((r) => setTimeout(r, retryDelayMs));
         }
       }

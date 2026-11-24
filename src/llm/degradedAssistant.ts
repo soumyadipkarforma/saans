@@ -28,9 +28,11 @@ export async function findPlace(
   const found = await geocode(text.split(',')[0]?.trim() ?? '');
   const chip = found.filter((l) => same(label(l), text));
   if (chip.length > 0) return chip.slice(0, 1);
-  if (!exactOnly) return found;
   const name = text.split(',')[0] ?? '';
-  return found.filter((l) => same(l.city, name));
+  const exact = found.filter((l) => same(l.city, name));
+  if (exactOnly) return exact;
+  // One city with exactly the typed name wins over look-alikes; two (Delhi, Delhi) still need a choice.
+  return exact.length === 1 ? exact : found;
 }
 
 export function createDegradedAssistant(deps: {

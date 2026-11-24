@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { KeyDialog } from './KeyDialog';
@@ -71,7 +71,8 @@ describe('KeyDialog', () => {
     const { onClose } = setup();
     await userEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
     expect(onClose).toHaveBeenCalledTimes(1);
-    await userEvent.type(screen.getByLabelText('Your Gemini API key'), '{Escape}');
+    // Escape makes the browser fire a cancel event on the dialog; jsdom does not, so fire it.
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 });

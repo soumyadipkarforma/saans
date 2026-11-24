@@ -13,7 +13,17 @@ const manyDelhi: Location[] = [
   ...delhiNames.map((city) => ({ ...delhi, city, state: nct })),
   { ...delhi, city: 'Delhi', state: 'Madhya Pradesh', lat: 22.1, lon: 76.2 },
 ];
+const pune: Location = { city: 'Pune', state: 'Maharashtra', lat: 18.52, lon: 73.86 };
+const twinA: Location = { city: 'Twin', state: 'Goa', lat: 15.3, lon: 74 };
+const twinB: Location = { city: 'Twin', state: 'Assam', lat: 26.1, lon: 91.7 };
 const places: Record<string, Location[]> = {
+  Pune: [
+    pune,
+    { city: 'Puneta', lat: 25, lon: 85 },
+    { city: 'Puneir', lat: 24, lon: 84 },
+    { city: 'Puneja', lat: 23, lon: 83 },
+  ],
+  Twin: [twinA, twinB],
   Okhla: [{ city: 'Okhla Village', state: 'Bihar', lat: 25, lon: 85 }],
   Sabzi: manyDelhi,
   Delhi: [delhi],
@@ -83,6 +93,21 @@ describe('degraded assistant', () => {
     expect(turn.candidates).toHaveLength(2);
     expect(turn.chips).toEqual(['Aurangabad, Maharashtra', 'Aurangabad, Bihar']);
     expect(turn.plan).toBeNull();
+  });
+
+  it('selects the single exact city name over look-alikes', async () => {
+    const { ask } = setup();
+    const turn = await ask('Pune');
+    expect(turn.candidates).toEqual([]);
+    expect(turn.profile.location).toEqual(pune);
+    expect(turn.air).not.toBeNull();
+  });
+
+  it('still asks when two cities share the exact name', async () => {
+    const { ask } = setup();
+    const turn = await ask('Twin');
+    expect(turn.candidates).toHaveLength(2);
+    expect(turn.chips).toEqual(['Twin, Goa', 'Twin, Assam']);
   });
 
   it('a "City, State" chip pick resolves to that candidate', async () => {

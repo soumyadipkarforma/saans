@@ -85,7 +85,7 @@ export const UpdateProfileArgs = z.object({
     .array(
       z.object({
         group: PersonGroupSchema,
-        age: z.number().optional(),
+        age: z.number().min(0).max(110).optional(),
         respiratory: z.boolean().default(false),
         pregnant: z.boolean().default(false),
       }),
@@ -97,8 +97,8 @@ export const UpdateProfileArgs = z.object({
       z.object({
         kind: ActivityKindSchema,
         startHour: z.number().int().min(0).max(23).optional(),
-        durationMin: z.number().positive().optional(),
-        distanceKm: z.number().positive().optional(),
+        durationMin: z.number().positive().max(600).optional(),
+        distanceKm: z.number().positive().max(100).optional(),
         mode: TravelModeSchema.optional(),
         participants: z.array(z.number().int().nonnegative()).default([0]),
         flexible: z.boolean().default(false),
@@ -109,7 +109,7 @@ export const UpdateProfileArgs = z.object({
 });
 
 export const SwapArgs = z.object({
-  distanceKm: z.number().positive().max(500),
+  distanceKm: z.number().positive().max(100),
   fromMode: TravelModeSchema,
   toMode: z.union([TravelModeSchema, z.literal('carpool')]),
   personGroup: PersonGroupSchema,

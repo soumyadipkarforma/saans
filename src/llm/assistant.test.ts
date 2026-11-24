@@ -101,7 +101,9 @@ describe('createAssistant', () => {
   it('the 11th turn within a minute is degraded; the window then slides', async () => {
     const { assistant, advance } = setup(says('Hello there'));
     for (let i = 0; i < 10; i++) expect((await assistant(input)).degraded).toBe(false);
-    expect((await assistant(input)).degraded).toBe(true);
+    const limited = await assistant(input);
+    expect(limited.degraded).toBe(true);
+    expect(limited.notice).toBe('rateLimited');
     advance(61_000);
     expect((await assistant(input)).degraded).toBe(false);
   });

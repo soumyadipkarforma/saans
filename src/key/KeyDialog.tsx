@@ -55,9 +55,6 @@ export function KeyDialog({ open, onClose, onChange }: Props) {
         e.preventDefault();
         finish();
       }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') finish();
-      }}
     >
       <h2 id="key-title">{tr('key.title')}</h2>
       <p>
