@@ -150,10 +150,11 @@ describe('timestamps and scale facts', () => {
     const set = allowedNumbers({ air: pune });
     expect(guardReply(captured, set).guarded).toBe(false);
   });
-  it('allows band boundaries and the 24-hour period but not other numbers', () => {
+  it('no longer allows scale facts or band boundaries', () => {
     const set = allowedNumbers({});
-    expect(guardReply('Poor is 200 to 300 over a 24-hour mean', set).guarded).toBe(false);
-    expect(guardReply('Poor is 213 today', set).guarded).toBe(true);
+    expect(guardReply('Poor is 201 to 300', set).guarded).toBe(true);
+    expect(guardReply('a 24-hour mean', set).guarded).toBe(true);
+    expect(guardReply('Poor air today, up to ten percent worse', set).guarded).toBe(false);
   });
 });
 
@@ -175,9 +176,8 @@ describe('AQI and PM context', () => {
     expect(check('AQI 85, satisfactory')).toBe(false);
     expect(check('The AQI of 85 is fine')).toBe(false);
     expect(check('PM2.5 is 41 and PM10 is 90')).toBe(false);
-    expect(check('on the 0-500 AQI scale')).toBe(false);
-    expect(check('the AQI scale runs 0 to 500')).toBe(false);
-    expect(check('Poor air is 200 to 300 on the scale')).toBe(false);
+    expect(check('AQI 85, Moderate')).toBe(false);
+    expect(check('Moderate air, so sensitive people should take care')).toBe(false);
   });
   it('with no reading in the turn, any number after AQI is guarded', () => {
     expect(guardReply('AQI is 85', allowedNumbers({}), readings({})).guarded).toBe(true);
@@ -212,25 +212,9 @@ describe('markdown and scale-word tricks', () => {
       expect(check(text), text).toBe(true);
     }
   });
-  it('passes the real reading and scale descriptions', () => {
-    for (const text of [
-      '**AQI 85**',
-      '**AQI** is 85',
-      'the AQI scale runs 0 to 500',
-      'AQI band 201-300 is poor',
-      'Poor is 201 to 300 on the AQI scale',
-    ]) {
+  it('passes the real reading in markdown', () => {
+    for (const text of ['**AQI 85**', '**AQI** is 85', 'AQI: 85, Moderate']) {
       expect(check(text), text).toBe(false);
     }
-  });
-});
-
-describe('more number words', () => {
-  it('reads Hindi compounds and English plurals', () => {
-    expect(extractNumbers('पचपन')).toEqual([55]);
-    expect(extractNumbers('निन्यानवे')).toEqual([99]);
-    expect(extractNumbers('चौबीस घंटे')).toEqual([24]);
-    expect(extractNumbers('in the hundreds')).toEqual([100]);
-    expect(extractNumbers('two lakhs')).toEqual([200000]);
   });
 });

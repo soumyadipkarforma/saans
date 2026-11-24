@@ -1,4 +1,3 @@
-import { AQI_MAX, PM25_BREAKPOINTS } from '../engine/constants';
 import type { AssistantTurn, Profile } from '../types';
 
 const DEVANAGARI_ZERO = 0x0966;
@@ -157,9 +156,6 @@ function addHour(set: Set<number>, h: number) {
   set.add(h % 12 === 0 ? 12 : h % 12);
 }
 
-// Public CPCB scale facts and the averaging period: the model may explain bands with these.
-// Band edges such as 201-300 include each band's lower bound.
-const SCALE_FACTS = [0, 24, ...PM25_BREAKPOINTS.flatMap(([, aqi]) => [aqi, aqi + 1]), AQI_MAX];
 const IST_OFFSET_MS = 330 * 60_000;
 
 // Date and time parts of a reading's timestamps, as an Indian reader sees them (IST).
@@ -174,7 +170,7 @@ function addTimestamp(set: Set<number>, iso: string) {
 }
 
 // Numbers the screen itself shows (this turn's tool and engine output), numbers the user typed
-// in the conversation window, timestamp parts and scale facts. Nothing the model wrote into the
+// in the conversation window, timestamp parts and 0 to 10. Scale ranges and band boundaries are not allowed. Nothing the model wrote into the
 // profile counts: that would let a value it invented be repeated next turn.
 export function allowedNumbers(
   turn: Partial<AssistantTurn>,
@@ -184,7 +180,6 @@ export function allowedNumbers(
   const userNumbers = Array.isArray(extra) ? extra : [];
   const set = new Set<number>();
   for (let n = 0; n <= 10; n++) set.add(n);
-  SCALE_FACTS.forEach((n) => set.add(n));
   userNumbers.forEach((n) => addNumber(set, n));
   const { air, forecast, plan } = turn;
   if (air) [air.observedAt, air.fetchedAt].forEach((iso) => addTimestamp(set, iso));
@@ -221,44 +216,33 @@ export function readings(turn: Partial<AssistantTurn>): Readings {
   return r;
 }
 
-const SCALE_WORDS = /scale|range|band|categor|level|पैमान/;
 // Labels may carry any punctuation around them ("**AQI**", "(AQI)", "AQI:").
 const EDGE = String.raw`[^\p{L}\p{N}]*`;
 const label = (core: string) => new RegExp(`^${EDGE}(?:${core})${EDGE}$`, 'u');
+// Pollutant names are rewritten to letters so their own digits are never read as numbers.
 const LABELS: [RegExp, keyof Readings][] = [
   [label('aqi|एक्यूआई'), 'aqi'],
-  [label(String.raw`pm\s?2\.5|pm25`), 'pm25'],
-  [label(String.raw`pm\s?10`), 'pm10'],
+  [label('pmtwofive'), 'pm25'],
+  [label('pmten'), 'pm10'],
 ];
-const NUMBER = /\d+(?:\.\d+)?/;
-const RANGE_WORD = /^(?:to|से|-|–|—)$/;
-// "0 to 500", "0–500" or "201 - 300": a span of the scale, not a reading.
-function isRange(words: string[], j: number): boolean {
-  const w = words[j] ?? '';
-  if (/\d\s*[-–—]\s*\d/.test(w)) return true;
-  return RANGE_WORD.test(words[j + 1] ?? '') && NUMBER.test(words[j + 2] ?? '');
-}
+const WINDOW = 3;
 
-// A number within three words after AQI, PM2.5 or PM10 must be that reading, not a scale fact.
-// Only a scale word between the label and a range ("AQI scale runs 0 to 500") excuses it.
+// Every number within three words after AQI, PM2.5 or PM10 must be that reading.
 function misattributed(reply: string, facts: Readings): boolean {
   const text = spellOut(toAscii(reply))
-    .replace(/[*_`~#>()[\]{}“”"'‘’]/g, ' ')
-    .replace(/pm\s(?=2\.5|10)/g, 'pm');
+    .replace(/pm\s?2\.5/g, ' pmtwofive ')
+    .replace(/pm\s?10/g, ' pmten ')
+    .replace(/[*_`~#>()[\]{}“”"'‘’=≈→:]/g, ' ');
   const words = text.split(/\s+/).filter(Boolean);
+  const kindOf = (w: string) => LABELS.find(([re]) => re.test(w))?.[1];
   return words.some((word, i) => {
-    const kind = LABELS.find(([re]) => re.test(word))?.[1];
+    const kind = kindOf(word);
     if (!kind) return false;
-    let scaleSeen = false;
-    for (let j = i + 1; j <= i + 3 && j < words.length; j++) {
+    for (let j = i + 1; j <= i + WINDOW && j < words.length; j++) {
       const w = words[j] ?? '';
-      const found = w.match(NUMBER);
-      if (!found) {
-        scaleSeen ||= SCALE_WORDS.test(w);
-        continue;
-      }
-      if (scaleSeen && isRange(words, j)) return false;
-      return !facts[kind].has(Number(found[0]));
+      if (kindOf(w)) break; // the next label starts its own window
+      const nums = (w.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
+      if (nums.some((n) => !facts[kind].has(n))) return true;
     }
     return false;
   });
