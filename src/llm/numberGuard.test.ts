@@ -195,6 +195,36 @@ describe('AQI and PM context', () => {
   });
 });
 
+describe('markdown and scale-word tricks', () => {
+  const real: AirReading = { ...air, aqi: 85 };
+  const t85 = { air: real };
+  const check = (text: string) => guardReply(text, allowedNumbers(t85), readings(t85)).guarded;
+  it('guards a fabricated AQI wrapped in markdown or brackets', () => {
+    for (const text of [
+      '**AQI** is 300, which is very poor.',
+      '(AQI) is 300',
+      '_AQI_: 300',
+      "Today's AQI level is 300",
+      'AQI (CPCB) is 300',
+      '`AQI` = 300',
+      '**एक्यूआई** ३००',
+    ]) {
+      expect(check(text), text).toBe(true);
+    }
+  });
+  it('passes the real reading and scale descriptions', () => {
+    for (const text of [
+      '**AQI 85**',
+      '**AQI** is 85',
+      'the AQI scale runs 0 to 500',
+      'AQI band 201-300 is poor',
+      'Poor is 201 to 300 on the AQI scale',
+    ]) {
+      expect(check(text), text).toBe(false);
+    }
+  });
+});
+
 describe('more number words', () => {
   it('reads Hindi compounds and English plurals', () => {
     expect(extractNumbers('पचपन')).toEqual([55]);

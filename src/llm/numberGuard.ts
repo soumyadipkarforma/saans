@@ -158,7 +158,8 @@ function addHour(set: Set<number>, h: number) {
 }
 
 // Public CPCB scale facts and the averaging period: the model may explain bands with these.
-const SCALE_FACTS = [0, 24, ...PM25_BREAKPOINTS.map(([, aqi]) => aqi), AQI_MAX];
+// Band edges such as 201-300 include each band's lower bound.
+const SCALE_FACTS = [0, 24, ...PM25_BREAKPOINTS.flatMap(([, aqi]) => [aqi, aqi + 1]), AQI_MAX];
 const IST_OFFSET_MS = 330 * 60_000;
 
 // Date and time parts of a reading's timestamps, as an Indian reader sees them (IST).
@@ -221,24 +222,43 @@ export function readings(turn: Partial<AssistantTurn>): Readings {
 }
 
 const SCALE_WORDS = /scale|range|band|categor|level|पैमान/;
+// Labels may carry any punctuation around them ("**AQI**", "(AQI)", "AQI:").
+const EDGE = String.raw`[^\p{L}\p{N}]*`;
+const label = (core: string) => new RegExp(`^${EDGE}(?:${core})${EDGE}$`, 'u');
 const LABELS: [RegExp, keyof Readings][] = [
-  [/^(?:aqi|एक्यूआई)\W*$/u, 'aqi'],
-  [/^pm\s?2\.5\W*$|^pm25\W*$/, 'pm25'],
-  [/^pm\s?10\W*$/, 'pm10'],
+  [label('aqi|एक्यूआई'), 'aqi'],
+  [label(String.raw`pm\s?2\.5|pm25`), 'pm25'],
+  [label(String.raw`pm\s?10`), 'pm10'],
 ];
+const NUMBER = /\d+(?:\.\d+)?/;
+const RANGE_WORD = /^(?:to|से|-|–|—)$/;
+// "0 to 500", "0–500" or "201 - 300": a span of the scale, not a reading.
+function isRange(words: string[], j: number): boolean {
+  const w = words[j] ?? '';
+  if (/\d\s*[-–—]\s*\d/.test(w)) return true;
+  return RANGE_WORD.test(words[j + 1] ?? '') && NUMBER.test(words[j + 2] ?? '');
+}
 
 // A number within three words after AQI, PM2.5 or PM10 must be that reading, not a scale fact.
+// Only a scale word between the label and a range ("AQI scale runs 0 to 500") excuses it.
 function misattributed(reply: string, facts: Readings): boolean {
-  const text = spellOut(toAscii(reply)).replace(/pm\s(?=2\.5|10)/g, 'pm');
-  const words = text.split(/\s+/);
+  const text = spellOut(toAscii(reply))
+    .replace(/[*_`~#>()[\]{}“”"'‘’]/g, ' ')
+    .replace(/pm\s(?=2\.5|10)/g, 'pm');
+  const words = text.split(/\s+/).filter(Boolean);
   return words.some((word, i) => {
-    const label = LABELS.find(([re]) => re.test(word))?.[1];
-    if (!label) return false;
+    const kind = LABELS.find(([re]) => re.test(word))?.[1];
+    if (!kind) return false;
+    let scaleSeen = false;
     for (let j = i + 1; j <= i + 3 && j < words.length; j++) {
       const w = words[j] ?? '';
-      if (SCALE_WORDS.test(w)) return false;
-      const found = w.match(/\d+(?:\.\d+)?/);
-      if (found) return !facts[label].has(Number(found[0]));
+      const found = w.match(NUMBER);
+      if (!found) {
+        scaleSeen ||= SCALE_WORDS.test(w);
+        continue;
+      }
+      if (scaleSeen && isRange(words, j)) return false;
+      return !facts[kind].has(Number(found[0]));
     }
     return false;
   });
