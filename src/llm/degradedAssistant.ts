@@ -7,6 +7,8 @@ import type { AssistantTurn, Location, Profile } from '../types';
 import type { Assistant } from '../chat/useConversation';
 import { acknowledge, airLine, isChip, nextStep } from './dialogue';
 import { answerFollowUp, followUpKind } from './followUps';
+import { placeCandidates } from './places';
+import { answerPlanIntent, planIntent } from './planAnswers';
 import { chipsFor, FOLLOW_UP_CHIPS, parseQuick } from './templates';
 
 type AirService = ReturnType<typeof createAirService>;
@@ -44,8 +46,9 @@ export function createDegradedAssistant(deps: {
         ?.text.trim() ?? '';
     const turns = messages.filter((m) => m.role === 'user').length;
     const kind = followUpKind(text);
+    const intent = planIntent(text);
     const followUp = kind !== null || isChip('chip.noOutdoors', text);
-    const quick = kind ? {} : parseQuick(text, profile);
+    const quick = kind || intent ? {} : parseQuick(text, profile);
     const hasQuick = Object.keys(quick).length > 0;
     let next: Profile = { ...profile, ...quick };
     const say = (key: string) => t(key, {}, lang);
@@ -63,19 +66,26 @@ export function createDegradedAssistant(deps: {
     });
 
     let hint = '';
-    const mayBePlace =
-      text !== '' &&
-      !followUp &&
-      !hasQuick &&
-      !text.includes('?') &&
-      text.length <= MAX_PLACE_CHARS;
-    if (mayBePlace) {
+    // A city can sit inside a sentence, so try named places first, then the whole text if it is a bare name or "City, State".
+    const mayBePlace = text !== '' && !followUp && intent === null;
+    const words = text.split(/\s+/).length;
+    const labelLike =
+      text.includes(',') && (text.split(',')[0] ?? '').trim().split(/\s+/).length <= 3;
+    const bare = text.length <= MAX_PLACE_CHARS && ((words <= 3 && !hasQuick) || labelLike);
+    const tries: [string, boolean][] = [
+      ...placeCandidates(text).map((c): [string, boolean] => [c, true]),
+    ];
+    if (bare) tries.splice(labelLike ? 0 : tries.length, 0, [text, false]);
+    if (mayBePlace && (tries.length > 0 || (!hasQuick && profile.location))) {
       // With a city already set, only an exact city-name hit switches it; anything else is chat.
       const current = profile.location;
       let found: Location[] = [];
       let failed = false;
       try {
-        found = await findPlace(deps.geocode, text, current !== undefined);
+        for (const [query, exactOnly] of tries) {
+          found = await findPlace(deps.geocode, query, exactOnly || current !== undefined);
+          if (found.length > 0) break;
+        }
       } catch {
         failed = true;
       }
@@ -87,11 +97,11 @@ export function createDegradedAssistant(deps: {
         } else if (found.length === 0 || failed) hint = ` ${say('reply.changeCity')}`;
       } else {
         if (failed) return turn({ reply: say('reply.airUnavailable'), notice: 'airUnavailable' });
-        if (found.length === 0) return turn({ reply: say('reply.notFound') });
+        if (found.length === 0 && !hasQuick) return turn({ reply: say('reply.notFound') });
         if (found.length > 1) {
           return turn({ reply: say('reply.pickCity'), chips: found.map(label), candidates: found });
         }
-        next = { ...next, location: found[0] };
+        if (found.length === 1) next = { ...next, location: found[0] };
       }
     }
 
@@ -131,9 +141,24 @@ export function createDegradedAssistant(deps: {
           plan: r.plan ?? plan,
         });
       }
+      if (intent) {
+        const reply = answerPlanIntent(intent, { lang, plan, profile: planProfile, text });
+        return turn({ reply, chips: FOLLOW_UP_CHIPS.map(say), air, forecast, plan });
+      }
       const step = nextStep({ lang, turns, profile: next, prev });
+      // A sentence can give a city and more; the city clause comes first, then what else was understood.
+      const cityNew = next.location !== profile.location;
       const parts = [
         acknowledge({ lang, turns, text, before: profile, after: next }),
+        cityNew && hasQuick
+          ? acknowledge({
+              lang,
+              turns,
+              text,
+              before: { ...profile, location: next.location },
+              after: next,
+            })
+          : '',
         airLine(lang, air, location.city, now, prev, location),
         step.text,
       ];

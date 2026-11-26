@@ -203,5 +203,13 @@
   "loc.ask": "What is the air like here?",
   "loc.outside": "Saans covers India only, and your location looks to be outside India. Please type a city instead.",
   "loc.denied": "Location access was blocked. Please type your city instead.",
-  "loc.unsupported": "This browser cannot share your location. Please type your city instead."
+  "loc.unsupported": "This browser cannot share your location. Please type your city instead.",
+  "ans.today": "{activity} at {hour}: {advice}.",
+  "ans.todayTip": "At home: {tip}",
+  "ans.todayNone": "Your plan has no timed activity yet.",
+  "ans.swap": "Best swap for {activity}: {headline}",
+  "ans.bestTime": "Best time for your {activity} today: {hour}, when the air should be {band} (modelled estimate).",
+  "ans.noWindow": "The cleanest hour for your {activity} is {hour}, but the air is still {band}, so move it indoors today.",
+  "ans.late": "It is too late in the day to go out for your {activity}. Skip it today.",
+  "ans.noFlexible": "Your plan has no walk, jog or play yet. Tell me what you do and I will find the best time."
 }

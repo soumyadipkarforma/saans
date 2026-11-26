@@ -39,6 +39,7 @@ const MODES: [RegExp, TravelMode][] = [
   [/\bmetro\b|मेट्रो/i, 'metro'],
   [/\bbus\b|बस/i, 'bus'],
   [/two[- ]?wheeler|\b(?:bike|scooter)\b|दोपहिया/i, 'twoWheeler'],
+  [/\bcycl(?:e|es|ing)\b|साइकिल/i, 'cycle'],
   [/\bwalk\b|टहल/i, 'walk'],
 ];
 // "Stroll" and "play" avoid the word "walk", which already means a walking commute above.

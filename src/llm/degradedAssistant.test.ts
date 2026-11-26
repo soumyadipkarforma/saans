@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { createAirService } from '../data/airService';
 import type { AirReading, Forecast, Location, Profile } from '../types';
+import { t } from '../i18n/i18n';
 import { createDegradedAssistant } from './degradedAssistant';
 
 const delhi: Location = { city: 'Delhi', state: 'Delhi', lat: 28.61, lon: 77.21 };
@@ -254,5 +255,114 @@ describe('degraded assistant', () => {
     expect(turn.reply).toContain('assuming a 10 km commute at 9:00');
     const kept = await ask('Metro', { location: delhi, household: [adult], activities: [commute] });
     expect(kept.reply).not.toContain('assuming');
+  });
+});
+
+describe('city inside a sentence (no key)', () => {
+  const cities: Record<string, Location> = {
+    Pune: pune,
+    Delhi: delhi,
+    Mumbai: mumbai,
+    Kolkata: { city: 'Kolkata', state: 'West Bengal', lat: 22.57, lon: 88.36 },
+    Lucknow: { city: 'Lucknow', state: 'Uttar Pradesh', lat: 26.85, lon: 80.95 },
+  };
+  const make = () => {
+    const geocode = vi.fn((q: string) => Promise.resolve(cities[q] ? [cities[q]] : []));
+    const assistant = createDegradedAssistant({
+      geocode,
+      air: { getAir: () => Promise.resolve({ air, forecast }) },
+    });
+    const ask = (text: string, profile: Profile = empty, lang: 'en' | 'hi' = 'en') =>
+      assistant({ messages: [{ role: 'user', text }], profile, lang, now });
+    return { geocode, ask };
+  };
+  const tr = (key: string, lang: 'en' | 'hi') => t(key, {}, lang);
+
+  it.each([
+    ['try.1', 'Pune'],
+    ['try.2', 'Delhi'],
+    ['try.3', 'Mumbai'],
+  ])('%s resolves %s in English and Hindi', async (key, city) => {
+    for (const lang of ['en', 'hi'] as const) {
+      const turn = await make().ask(tr(key, lang), empty, lang);
+      expect(turn.profile.location?.city).toBe(city);
+    }
+  });
+
+  it('try.4 names Kolkata in English and Lucknow in Hindi', async () => {
+    const en = await make().ask(tr('try.4', 'en'));
+    const hi = await make().ask(tr('try.4', 'hi'), empty, 'hi');
+    expect([en.profile.location?.city, hi.profile.location?.city]).toEqual(['Kolkata', 'Lucknow']);
+  });
+
+  it.each(['try.5', 'try.6'])('%s with no location asks for the city', async (key) => {
+    for (const lang of ['en', 'hi'] as const) {
+      const { ask, geocode } = make();
+      const turn = await ask(tr(key, lang), empty, lang);
+      expect(turn.reply).toBe(tr('reply.askLocation', lang));
+      expect(geocode).not.toHaveBeenCalled();
+    }
+  });
+
+  it('one sentence gives the city, a sensitive member and a cycle commute', async () => {
+    const turn = await make().ask(tr('try.1', 'en'));
+    expect(turn.profile.location?.city).toBe('Pune');
+    expect(turn.profile.household.some((m) => m.group === 'elderly' && m.respiratory)).toBe(true);
+    expect(turn.profile.activities.some((a) => a.kind === 'commute' && a.mode === 'cycle')).toBe(
+      true,
+    );
+    expect(turn.reply).toContain('Pune');
+    expect(turn.reply.toLowerCase()).toContain('asthma');
+  });
+
+  it('with Delhi set, "we walk in the park" does not switch city or search', async () => {
+    const { ask, geocode } = make();
+    const turn = await ask('we walk in the park', { ...empty, location: delhi });
+    expect(turn.profile.location).toEqual(delhi);
+    expect(geocode).not.toHaveBeenCalled();
+  });
+
+  it('with Delhi set, a sentence naming Mumbai switches', async () => {
+    const turn = await make().ask('How is the air in Mumbai today?', { ...empty, location: delhi });
+    expect(turn.profile.location?.city).toBe('Mumbai');
+  });
+});
+
+describe('demo script questions (no key)', () => {
+  const full = (activities: Profile['activities']): Profile => ({
+    location: delhi,
+    household: [adult],
+    activities,
+  });
+  const exercise = {
+    kind: 'exercise' as const,
+    label: 'jog',
+    startHour: 18,
+    participants: [0],
+    flexible: true,
+  };
+  const run = (text: string, profile: Profile) =>
+    createDegradedAssistant({
+      geocode: () => Promise.resolve([]),
+      air: { getAir: () => Promise.resolve({ air, forecast }) },
+    })({ messages: [{ role: 'user', text }], profile, lang: 'en', now });
+
+  it('answers each demo question from the plan, not with the generic ready line', async () => {
+    const t1 = await run('What does today look like for us?', full([commute]));
+    expect(t1.reply).toContain('Commute at 8:00');
+    expect(t1.reply).toContain('At home:');
+    expect(t1.profile.activities).toEqual([commute]);
+    const t2 = await run(
+      'Which swap would help us the most?',
+      full([{ ...commute, mode: 'petrolCar' }]),
+    );
+    expect(t2.reply).toContain('Best swap for Commute');
+    expect(t2.reply).toContain('% less smog inhaled');
+    const t3 = await run('When is the best time for our evening jog?', full([exercise]));
+    expect(t3.reply).toMatch(/jog/);
+    expect(t3.plan).not.toBeNull();
+    const t4 = await run('When should we go for our morning walk?', full([commute]));
+    expect(t4.reply).toContain('no walk, jog or play');
+    expect(t4.profile.activities).toEqual([commute]);
   });
 });
