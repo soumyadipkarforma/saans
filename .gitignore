@@ -7,3 +7,5 @@ test-results/
 .superpowers/
 *.tsbuildinfo
 .claude/
+docs/demo-script.md
+recordings/

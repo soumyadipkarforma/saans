@@ -4,6 +4,8 @@ Tell Saans who lives in your home and what your day looks like. It gives you a s
 
 Entry for Hack2skill PromptWars Virtual, Challenge 6 ("Urban Air Quality Assistant").
 
+**Live app:** https://soumyadipkarforma.github.io/saans/
+
 ## Brief → feature mapping
 
 | Brief requirement              | Saans feature                                                                                                    |
@@ -34,14 +36,14 @@ flowchart LR
 
 ### Code layout
 
-| Folder                                | What it does                                                                                                                                                                                    | Status        |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| `src/types.ts`                        | zod schemas and types for every data shape (location, air reading, forecast, household, plan, assistant turn)                                                                                   | Done          |
-| `src/engine/`                         | Pure calculation engine: CPCB AQI, inhaled PM2.5 dose, CO₂ per trip, swap impact, best/worst forecast hours, indoor tips, day planner. 100% test coverage. See [docs/engine.md](docs/engine.md) | Done          |
-| `src/data/`                           | Open-Meteo client: fetch with 5 s timeout and schema check, India-only place search, air quality + 48 h forecast, 10-minute cache                                                               | Done          |
-| `src/plan/`, `src/chat/`, `src/i18n/` | Screens: AQI card, day timeline, swap cards, at-home card, chat, English/Hindi                                                                                                                  | Not built yet |
-| `src/llm/`, `src/key/`                | Template assistant and Gemini assistant (bring your own key)                                                                                                                                    | Done          |
-| `src/speech/`, `src/demo/`            | Voice input/output, demo families, "Try saying…" hints                                                                                                                                          | Not built yet |
+| Folder                                | What it does                                                                                                                                                                                    | Status |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `src/types.ts`                        | zod schemas and types for every data shape (location, air reading, forecast, household, plan, assistant turn)                                                                                   | Done   |
+| `src/engine/`                         | Pure calculation engine: CPCB AQI, inhaled PM2.5 dose, CO₂ per trip, swap impact, best/worst forecast hours, indoor tips, day planner. 100% test coverage. See [docs/engine.md](docs/engine.md) | Done   |
+| `src/data/`                           | Open-Meteo client: fetch with 5 s timeout and schema check, India-only place search, air quality + 48 h forecast, 10-minute cache                                                               | Done   |
+| `src/plan/`, `src/chat/`, `src/i18n/` | Screens: AQI card, day timeline, swap cards, at-home card, chat, English/Hindi                                                                                                                  | Done   |
+| `src/llm/`, `src/key/`                | Template assistant and Gemini assistant (bring your own key)                                                                                                                                    | Done   |
+| `src/speech/`, `src/demo/`            | Voice input/output, demo families, "Try saying…" hints                                                                                                                                          | Done   |
 
 ## Data sources and attribution
 
@@ -94,6 +96,20 @@ Requires Node 22 or later (see `.nvmrc`).
 - Tests never call the network: Open-Meteo responses come from fixtures in `src/data/fixtures/`.
 - Time-zone safety: tests run with `TZ=UTC` and forecast hours are kept in India time (IST), so the advice is right wherever the code runs.
 
+## Try it in 30 seconds
+
+1. Open the live app and tap **Try a demo family** → **Sharma family, Delhi**. No key needed; it uses live air data.
+2. Or type a sentence, for example:
+   - "I live in Pune, I cycle to college and my dad has asthma"
+   - "I live in Delhi, I drive 12 km to office and my son is 8"
+   - "मैं लखनऊ में रहता हूँ, सुबह पार्क में टहलता हूँ"
+3. Tap the follow-up chips: "Can my child play outside at 5?", "What if I work from home?", "Explain the AQI".
+4. Optional: tap **AI: off** and paste your own Gemini key to let Gemini hold the conversation.
+
+## Deployment
+
+Every push to `main` runs `.github/workflows/deploy.yml`: lint, type-check, tests, then a build with `BASE_PATH=/<repo>/`, published to GitHub Pages. In the repository settings, set **Pages → Source** to **GitHub Actions** once.
+
 ## Project docs
 
 - Design spec: [docs/superpowers/specs/2026-11-20-saans-design.md](docs/superpowers/specs/2026-11-20-saans-design.md)
@@ -102,4 +118,4 @@ Requires Node 22 or later (see `.nvmrc`).
 
 ## Still to write
 
-Live link, demo video, screenshots, accessibility notes, deployment (GitHub Pages), and "What GenAI did vs what I did" will be added as those parts are built.
+Demo video link, screenshots, accessibility audit notes and "What GenAI did vs what I did" will be added before submission.
