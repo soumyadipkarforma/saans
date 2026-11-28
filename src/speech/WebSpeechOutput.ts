@@ -30,21 +30,34 @@ export function forSpeech(text: string): string {
 // Android reports "en_IN"; desktop Chrome "en-IN".
 const norm = (l: string) => l.replace('_', '-').toLowerCase();
 
+// Voices on the device come first: Chrome's online "Google" voices often fail silently or cut out after
+// about 15 seconds on desktop.
 function pickVoice(voices: SpeechSynthesisVoice[], lang: Lang): SpeechSynthesisVoice | undefined {
   const order = lang === 'hi' ? ['hi'] : ['en-in', 'en-gb', 'en'];
+  const ranked = [...voices].sort((a, b) => Number(b.localService) - Number(a.localService));
   for (const prefix of order) {
-    const v = voices.find((x) => norm(x.lang).startsWith(prefix));
+    const v = ranked.find((x) => norm(x.lang).startsWith(prefix));
     if (v) return v;
   }
   return undefined;
 }
 
+// An online voice that has not started by then is treated as failed; the default voice takes over.
+const START_TIMEOUT_MS = 2500;
+
 export class WebSpeechOutput implements SpeechOutput {
   private timer: ReturnType<typeof setTimeout> | undefined;
+  // Chrome can garbage-collect a playing utterance and never fire its end event; holding it prevents that.
+  private readonly held = new Set<SpeechSynthesisUtterance>();
 
   constructor() {
     // Chrome loads voices late; asking once warms the list before the first reply.
     if (supported()) window.speechSynthesis.getVoices();
+  }
+
+  private hold(u: SpeechSynthesisUtterance) {
+    this.held.clear();
+    this.held.add(u);
   }
 
   isSupported(): boolean {
@@ -59,27 +72,56 @@ export class WebSpeechOutput implements SpeechOutput {
     const synth = window.speechSynthesis;
     const busy = synth.speaking || synth.pending;
     this.cancel();
-    const u = new SpeechSynthesisUtterance(firstSentences(forSpeech(text)));
-    u.lang = SPEECH_LOCALE[lang];
-    const voice = pickVoice(synth.getVoices(), lang);
-    if (voice) u.voice = voice;
-    if (onEnd) {
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        onEnd();
-      };
+    const words = firstSentences(forSpeech(text));
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(this.timer);
+      onEnd?.();
+    };
+    const make = (voice?: SpeechSynthesisVoice) => {
+      const u = new SpeechSynthesisUtterance(words);
+      u.lang = SPEECH_LOCALE[lang];
+      if (voice) {
+        u.voice = voice;
+        // Some engines stay silent when the language and the voice disagree (en-IN text, en-US voice).
+        u.lang = voice.lang;
+      }
       u.onend = finish;
       u.onerror = finish;
-    }
+      return u;
+    };
+    const voice = pickVoice(synth.getVoices(), lang);
+    const u = make(voice);
+    const play = () => {
+      this.hold(u);
+      synth.speak(u);
+      // Chrome on Windows can leave the engine paused after a cancel.
+      if (synth.paused) synth.resume();
+      if (voice?.localService === false) {
+        let started = false;
+        u.onstart = () => (started = true);
+        this.timer = setTimeout(() => {
+          if (started || done) return;
+          // Detach first: cancelling fires the failed utterance's error event.
+          u.onend = null;
+          u.onerror = null;
+          synth.cancel();
+          const fallback = make();
+          this.hold(fallback);
+          synth.speak(fallback);
+        }, START_TIMEOUT_MS);
+      }
+    };
     // Chrome drops an utterance queued in the same tick as cancel(); wait a beat.
-    if (busy) this.timer = setTimeout(() => synth.speak(u), 80);
-    else synth.speak(u);
+    if (busy) this.timer = setTimeout(play, 80);
+    else play();
   }
 
   cancel(): void {
     clearTimeout(this.timer);
+    this.held.clear();
     if (supported()) window.speechSynthesis.cancel();
   }
 }

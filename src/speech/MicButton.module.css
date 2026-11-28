@@ -26,8 +26,8 @@
   min-height: 3.5rem;
   padding: 0 1.75rem;
   border: none;
-  background: var(--color-text);
-  color: var(--color-surface);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
   font-weight: 700;
   font-size: 1.05rem;
 }
@@ -40,8 +40,8 @@
 }
 
 .mute[aria-pressed='true'] {
-  background: var(--color-text);
-  color: var(--color-surface);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
 }
 
 .hint,
@@ -64,9 +64,9 @@
   height: 6.5rem;
   border: none;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #9ad1ff, #2f6fdb 60%, #1a3f8f);
+  background: radial-gradient(circle at 35% 30%, #7ee787, #2ea043 60%, #0f5323);
   cursor: pointer;
-  box-shadow: 0 0 0 0 rgb(47 111 219 / 0.4);
+  box-shadow: 0 0 0 0 rgb(46 160 67 / 0.4);
 }
 
 .core {
@@ -86,7 +86,7 @@
 
 .thinking {
   animation: spin 1.6s linear infinite;
-  background: conic-gradient(#2f6fdb, #9ad1ff, #2f6fdb);
+  background: conic-gradient(#2ea043, #7ee787, #2ea043);
 }
 
 .speaking .core {
@@ -95,7 +95,7 @@
 
 @keyframes breathe {
   50% {
-    box-shadow: 0 0 0 1rem rgb(47 111 219 / 0.15);
+    box-shadow: 0 0 0 1rem rgb(46 160 67 / 0.2);
   }
 }
 

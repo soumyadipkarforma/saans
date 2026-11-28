@@ -45,8 +45,8 @@
 }
 
 .toggleButton[aria-pressed='true'] {
-  background: var(--color-text);
-  color: var(--color-surface);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
 }
 
 .layout {
@@ -91,4 +91,8 @@
 
 .footer p {
   margin: 0 0 0.25rem;
+}
+
+.header h1 {
+  color: var(--color-link);
 }

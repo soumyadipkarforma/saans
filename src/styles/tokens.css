@@ -7,16 +7,20 @@
  *   poor          #4a1d00 on #ff9e57  7.01:1
  *   veryPoor      #ffffff on #b4232c  6.53:1
  *   severe        #ffffff on #5c0a12 13.93:1
- * Page text #1c1c1c on #fbfaf6 16.32:1; muted #4a4f57 on #fbfaf6 7.89:1; link #0b57a4 on #fbfaf6 6.90:1.
+ * Theme: GitHub-style dark. Text #e6edf3 on #0d1117 16.0:1; muted #8b949e on #161b22 5.6:1;
+ *   link #3fb950 on #0d1117 7.6:1; button text #ffffff on #238636 4.6:1 (bold).
  */
 :root {
-  --color-bg: #fbfaf6;
-  --color-surface: #ffffff;
-  --color-text: #1c1c1c;
-  --color-muted: #4a4f57;
-  --color-link: #0b57a4;
-  --color-focus: #0b57a4;
-  --color-border: #d8d4c8;
+  color-scheme: dark;
+  --color-bg: #0d1117;
+  --color-surface: #161b22;
+  --color-text: #e6edf3;
+  --color-muted: #8b949e;
+  --color-link: #3fb950;
+  --color-focus: #3fb950;
+  --color-border: #30363d;
+  --color-accent: #238636;
+  --color-accent-ink: #ffffff;
 
   --aqi-good: #8fd19e;
   --aqi-good-ink: #0f3d1f;

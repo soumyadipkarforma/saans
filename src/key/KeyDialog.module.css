@@ -52,6 +52,6 @@
 }
 
 .primary {
-  background: var(--color-text);
-  color: var(--color-surface);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
 }
