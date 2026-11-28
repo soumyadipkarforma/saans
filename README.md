@@ -116,6 +116,28 @@ Every push to `main` runs `.github/workflows/deploy.yml`: lint, type-check, test
 - Build plan: [docs/superpowers/plans/2026-11-20-saans-plan.md](docs/superpowers/plans/2026-11-20-saans-plan.md)
 - Engine and its numbers: [docs/engine.md](docs/engine.md)
 
-## Still to write
+## Voice
 
-Demo video link, screenshots, accessibility audit notes and "What GenAI did vs what I did" will be added before submission.
+- **Speaking to Saans** uses the browser's speech recognition (Chrome and Edge; English `en-IN` and Hindi `hi-IN`). Typing and the tap chips always work too.
+- **Saans speaking back** uses the browser's built-in voices (`speechSynthesis`), not Gemini, so it needs no key and costs nothing. It reads the first three sentences of each reply, skips the source note in brackets, and says units in words ("micrograms per cubic metre"). It prefers an Indian English voice, then British, then any English voice. The speaker button in the header mutes it.
+- How good the voice sounds depends on the voices installed on the device. On Windows, Settings → Time & language → Speech → add "English (India)" for a better accent.
+
+## Security
+
+- Static site, no backend, no cookies, no analytics. Your household profile, language and mute choice are saved in this browser's `localStorage` so the plan survives a reload; nothing else is stored.
+- The production build carries a Content-Security-Policy meta tag (added by a small Vite plugin in `vite.config.ts`): scripts only from the site itself, and network calls only to Open-Meteo (air quality, geocoding) and Google's Gemini API. `object-src 'none'`, `form-action 'none'`, `base-uri 'self'`.
+- `Referrer-Policy: no-referrer`, so the city you search for never leaks in a referrer.
+- No `dangerouslySetInnerHTML`; every reply is rendered as text.
+- The Gemini key lives in `sessionStorage` only (gone when the tab closes), never in `localStorage`, files or the URL.
+- All API responses are validated with zod before use; user text is capped at 500 characters.
+
+## What GenAI did vs what I did
+
+| | Who |
+| --- | --- |
+| Problem choice, the "numbers from code, words from AI" rule, household-first design | Me |
+| Design spec and the 25-task build plan | Drafted with Claude Code from my brief, reviewed and changed by me (e.g. no backend, bring-your-own key, Open-Meteo only) |
+| Code and tests | Written by Claude Code agents task by task; every task reviewed before it counted as done |
+| Engine factors (breathing rates, place factors, CO₂ per km) | Taken from the cited sources in [docs/engine.md](docs/engine.md); marked as assumptions where they are |
+| In the running app | Gemini (optional, your key) writes the words of replies. It never produces a number: the engine and Open-Meteo do, and a number guard checks every reply |
+| Testing in the browser, live Gemini checks, deployment | Me, with Claude Code |

@@ -252,7 +252,7 @@ describe('degraded assistant', () => {
   it('says so when a travel chip invents a default commute', async () => {
     const { ask } = setup();
     const turn = await ask('Metro', { ...empty, location: delhi, household: [adult] });
-    expect(turn.reply).toContain('assuming a 10 km commute at 9:00');
+    expect(turn.reply).toContain('assuming your daily trip is 10 km, leaving at 9:00');
     const kept = await ask('Metro', { location: delhi, household: [adult], activities: [commute] });
     expect(kept.reply).not.toContain('assuming');
   });

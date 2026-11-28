@@ -118,7 +118,7 @@
   "chip.explain": "Explain the AQI",
   "reply.airSensitive": "Air in {city} is {band}, AQI {aqi}. Someone at home is sensitive, so I kept the advice cautious; source: CAMS via Open-Meteo, a modelled estimate.",
   "reply.changeCity": "To change city, type its name.",
-  "reply.assumedCommute": "I am assuming a 10 km commute at 9:00.",
+  "reply.assumedCommute": "I am assuming your daily trip is 10 km, leaving at 9:00.",
   "header.aiOn": "AI: on",
   "header.aiOff": "AI: off",
   "key.title": "Gemini key (optional)",
