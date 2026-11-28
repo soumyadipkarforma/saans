@@ -6,6 +6,8 @@ export interface DemoFamily {
   city: string;
   // The exact "City, State" chip label, so a place with look-alikes (Delhi) resolves without a question.
   placeLabel: string;
+  // The answer to "which part of the city?", so the demo shows the area flow too.
+  area: string;
   profile: Omit<Profile, 'location'>;
   // User messages played after the profile is set; each has a "?" so it is read as a question, not a place.
   script: string[];
@@ -20,6 +22,7 @@ export const DEMO_FAMILIES: DemoFamily[] = [
     name: 'Sharma',
     city: 'Delhi',
     placeLabel: 'Delhi, National Capital Territory of Delhi',
+    area: 'Rohini',
     profile: {
       household: [
         adult,
@@ -52,6 +55,7 @@ export const DEMO_FAMILIES: DemoFamily[] = [
     name: 'Iyer',
     city: 'Mumbai',
     placeLabel: 'Mumbai, Maharashtra',
+    area: 'Andheri',
     profile: {
       household: [adult, adult],
       activities: [
@@ -73,6 +77,7 @@ export const DEMO_FAMILIES: DemoFamily[] = [
     name: 'Das',
     city: 'Kolkata',
     placeLabel: 'Kolkata, West Bengal',
+    area: 'Salt Lake',
     profile: {
       household: [elder, elder],
       activities: [

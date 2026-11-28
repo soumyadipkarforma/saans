@@ -5,6 +5,7 @@ import { t } from '../i18n/i18n';
 import { istNow } from '../time';
 import type { AssistantTurn, Location, Profile } from '../types';
 import type { Assistant } from '../chat/useConversation';
+import { findArea, isGreeting, placeName } from './area';
 import { acknowledge, airLine, isChip, nextStep } from './dialogue';
 import { answerFollowUp, followUpKind } from './followUps';
 import { placeCandidates } from './places';
@@ -29,9 +30,10 @@ export async function findPlace(
   if (chip.length > 0) return chip.slice(0, 1);
   const name = text.split(',')[0] ?? '';
   const exact = found.filter((l) => same(l.city, name));
-  if (exactOnly) return exact;
-  // One city with exactly the typed name wins over look-alikes; two (Delhi, Delhi) still need a choice.
-  return exact.length === 1 ? exact : found;
+  // The geocoder ranks by size, so "Delhi" means the capital, not a village of the same name.
+  // Someone who meant the other one can say "Delhi, Madhya Pradesh".
+  if (exact.length > 0 || exactOnly) return exact.slice(0, 1);
+  return found;
 }
 
 export function createDegradedAssistant(deps: {
@@ -66,8 +68,37 @@ export function createDegradedAssistant(deps: {
     });
 
     let hint = '';
+    const greeting = isGreeting(text);
+    if (greeting && !profile.location) return turn({ reply: say('reply.greet') });
+
+    // Right after the city, Saans asks which part of it; the answer moves the reading to that area.
+    let areaAck = '';
+    let areaTried = false;
+    const areaAsked =
+      profile.location?.area === undefined &&
+      (prev?.chips.some((c) => isChip('chip.skipArea', c)) ?? false);
+    const city = profile.location;
+    if (areaAsked && city) {
+      if (isChip('chip.skipArea', text)) {
+        next = { ...next, location: { ...city, area: '' } };
+        areaAck = t('ack.areaSkip', { city: city.city }, lang);
+      } else if (!kind && !intent) {
+        const short = text.split(/\s+/).length <= 4 && !hasQuick;
+        const queries = [...(short ? [text] : []), ...placeCandidates(text)];
+        for (const q of queries) {
+          areaTried = true;
+          const hit = await findArea(deps.geocode, q, city).catch(() => null);
+          if (hit) {
+            next = { ...next, location: hit };
+            areaAck = t('ack.area', { area: hit.area ?? '' }, lang);
+            break;
+          }
+        }
+      }
+    }
+
     // A city can sit inside a sentence, so try named places first, then the whole text if it is a bare name or "City, State".
-    const mayBePlace = text !== '' && !followUp && intent === null;
+    const mayBePlace = text !== '' && !followUp && intent === null && !greeting && !areaAck;
     const words = text.split(/\s+/).length;
     const labelLike =
       text.includes(',') && (text.split(',')[0] ?? '').trim().split(/\s+/).length <= 3;
@@ -105,6 +136,15 @@ export function createDegradedAssistant(deps: {
       }
     }
 
+    // An unanswered area question is asked once: whatever came back, the whole city is used from here on.
+    if (areaAsked && next.location === profile.location && city) {
+      next = { ...next, location: { ...city, area: '' } };
+      if (areaTried) {
+        areaAck = t('ack.areaMissing', { city: city.city }, lang);
+        hint = '';
+      }
+    }
+
     const location = next.location;
     if (!location) return turn({ reply: say('reply.askLocation') });
 
@@ -127,7 +167,7 @@ export function createDegradedAssistant(deps: {
       if (kind) {
         const r = answerFollowUp(kind, {
           lang,
-          city: location.city,
+          city: placeName(location),
           air,
           forecast,
           profile: next,
@@ -145,11 +185,12 @@ export function createDegradedAssistant(deps: {
         const reply = answerPlanIntent(intent, { lang, plan, profile: planProfile, text });
         return turn({ reply, chips: FOLLOW_UP_CHIPS.map(say), air, forecast, plan });
       }
-      const step = nextStep({ lang, turns, profile: next, prev });
       // A sentence can give a city and more; the city clause comes first, then what else was understood.
       const cityNew = next.location !== profile.location;
+      const step = nextStep({ lang, turns, profile: next, prev, askArea: cityNew });
       const parts = [
-        acknowledge({ lang, turns, text, before: profile, after: next }),
+        greeting ? say('reply.greetBack') : '',
+        areaAck || acknowledge({ lang, turns, text, before: profile, after: next }),
         cityNew && hasQuick
           ? acknowledge({
               lang,
@@ -159,7 +200,7 @@ export function createDegradedAssistant(deps: {
               after: next,
             })
           : '',
-        airLine(lang, air, location.city, now, prev, location),
+        airLine(lang, air, placeName(location), now, prev, location),
         step.text,
       ];
       return turn({

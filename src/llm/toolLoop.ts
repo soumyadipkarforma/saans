@@ -16,6 +16,7 @@ import {
   type Location,
   type Profile,
 } from '../types';
+import { findArea } from './area';
 import { findPlace, label } from './degradedAssistant';
 import { LlmError, type LlmClient } from './llmClient';
 import { systemPrompt } from './systemPrompt';
@@ -89,7 +90,7 @@ export function createGeminiAssistant(deps: {
       if (name === 'update_profile') {
         const parsed = UpdateProfileArgs.safeParse(args);
         if (!parsed.success) return fail('Invalid arguments for update_profile.');
-        const { place, household, activities } = parsed.data;
+        const { place, area, household, activities } = parsed.data;
         const checked = ProfileSchema.safeParse({
           ...next,
           ...(household && { household }),
@@ -119,6 +120,16 @@ export function createGeminiAssistant(deps: {
             forecast = null;
             plan = null;
           }
+        }
+        const city = draft.location;
+        if (area && city) {
+          const hit = await findArea(deps.geocode, area, city).catch(() => null);
+          // Not found: keep the whole city, and say so rather than guess another place.
+          draft = { ...draft, location: hit ?? { ...city, area: '' } };
+          result = { ...result, area: hit ? hit.area : 'not found; using the whole city' };
+          air = null;
+          forecast = null;
+          plan = null;
         }
         next = draft;
         return result;

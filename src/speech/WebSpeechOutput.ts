@@ -51,8 +51,11 @@ export class WebSpeechOutput implements SpeechOutput {
     return supported();
   }
 
-  speak(text: string, lang: Lang): void {
-    if (!supported()) return;
+  speak(text: string, lang: Lang, onEnd?: () => void): void {
+    if (!supported()) {
+      onEnd?.();
+      return;
+    }
     const synth = window.speechSynthesis;
     const busy = synth.speaking || synth.pending;
     this.cancel();
@@ -60,6 +63,16 @@ export class WebSpeechOutput implements SpeechOutput {
     u.lang = SPEECH_LOCALE[lang];
     const voice = pickVoice(synth.getVoices(), lang);
     if (voice) u.voice = voice;
+    if (onEnd) {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        onEnd();
+      };
+      u.onend = finish;
+      u.onerror = finish;
+    }
     // Chrome drops an utterance queued in the same tick as cancel(); wait a beat.
     if (busy) this.timer = setTimeout(() => synth.speak(u), 80);
     else synth.speak(u);

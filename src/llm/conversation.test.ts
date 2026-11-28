@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AQI_MAX } from '../engine/constants';
+import { t } from '../i18n/i18n';
 import { minutesSince } from '../time';
 import type { AirReading, AssistantTurn, ChatMessage, Forecast, Location, Profile } from '../types';
 import { createDegradedAssistant } from './degradedAssistant';
+
+// The chip Saans offers right after a city is set: keep the whole city, no area.
+const SKIP = t('chip.skipArea', {}, 'en');
 import { allowedNumbers, guardReply } from './numberGuard';
 
 const delhi: Location = { city: 'Delhi', state: 'Delhi', lat: 28.61, lon: 77.21 };
@@ -56,59 +60,67 @@ function chat() {
 }
 
 describe('no-key conversation', () => {
-  it('acknowledges, states the air once, asks one missing slot at a time, then offers follow-ups', async () => {
+  it('acknowledges the city, asks for the area, then one missing slot at a time, then offers follow-ups', async () => {
     const c = chat();
     const t1 = await c.say('Delhi');
-    expect(t1.reply).toMatch(/^Got it — Delhi\./);
+    expect(t1.reply).toMatch(/^Delhi, got it\./);
     expect(t1.reply).toContain(
       'Air in Delhi is Moderate, AQI 177 (CAMS via Open-Meteo, modelled estimate, updated 12 min ago).',
     );
-    expect(t1.reply).toMatch(/sensitive to smog/);
-    expect(t1.chips).toEqual(['No one sensitive', 'Child at home', 'Elder with asthma']);
+    expect(t1.reply).toContain('Which part of Delhi do you live in?');
+    expect(t1.chips).toEqual([SKIP]);
 
-    const t2 = await c.say('Elder with asthma');
-    expect(t2.reply).toContain('Noted');
-    expect(t2.reply).toContain('an elder with asthma');
+    const t2 = await c.say(SKIP);
+    expect(t2.reply).toContain("Okay, I'll use Delhi as a whole.");
     expect(t2.reply).not.toContain('Air in');
-    expect(t2.reply).toMatch(/travel|get around/);
-    expect(t2.chips).toEqual(['Car', 'Metro', 'Bus', 'Two-wheeler']);
+    expect(t2.reply).toMatch(/family/);
+    expect(t2.chips).toEqual(['No one sensitive', 'Child at home', 'Elder with asthma']);
 
-    const t3 = await c.say('Car');
-    expect(t3.reply).toMatch(/^Okay, petrol car\./);
+    const t3 = await c.say('Elder with asthma');
+    expect(t3.reply).toMatch(/noted/i);
+    expect(t3.reply).toContain('an elder with asthma');
     expect(t3.reply).not.toContain('Air in');
-    expect(t3.reply).toMatch(/outdoors/);
-    expect(t3.chips).toContain('Nothing outdoors');
+    expect(t3.reply).toMatch(/travel|get around/);
+    expect(t3.chips).toEqual(['Car', 'Metro', 'Bus', 'Two-wheeler']);
 
-    const t4 = await c.say('Nothing outdoors');
-    expect(t4.reply).toContain('plan is ready');
-    expect(t4.chips).toEqual([
+    const t4 = await c.say('Car');
+    expect(t4.reply).toMatch(/^(Okay|Got it), petrol car\./);
+    expect(t4.reply).not.toContain('Air in');
+    expect(t4.reply).toMatch(/outside/);
+    expect(t4.chips).toContain('Nothing outdoors');
+
+    const t5 = await c.say('Nothing outdoors');
+    expect(t5.reply).toContain('Your plan for today is ready');
+    expect(t5.chips).toEqual([
       'What if I work from home?',
       'Can my child play outside at 5?',
       'Explain the AQI',
     ]);
 
-    const t5 = await c.say('What if I work from home?');
-    expect(t5.reply).toContain('CO₂');
-    expect(t5.plan?.lowEmissionRoutine).toEqual([]);
-    expect(t5.chips).toEqual(t4.chips);
-    expect(t5.profile.activities.some((a) => a.kind === 'commute')).toBe(true);
+    const t6 = await c.say('What if I work from home?');
+    expect(t6.reply).toContain('CO₂');
+    expect(t6.plan?.lowEmissionRoutine).toEqual([]);
+    expect(t6.chips).toEqual(t5.chips);
+    expect(t6.profile.activities.some((a) => a.kind === 'commute')).toBe(true);
   });
 
   it('counts an outdoor activity as the third slot and keeps the mode on the commute only', async () => {
     const c = chat();
     await c.say('Delhi');
+    await c.say(SKIP);
     await c.say('No one sensitive');
     await c.say('Metro');
     const t = await c.say('Evening stroll');
     expect(t.profile.activities.map((a) => a.kind)).toEqual(['commute', 'walk']);
     expect(t.profile.activities[0]?.mode).toBe('metro');
     expect(t.profile.activities[1]?.mode).toBeUndefined();
-    expect(t.reply).toContain('plan is ready');
+    expect(t.reply).toContain('Your plan for today is ready');
   });
 
   it('repeats the air line when the reading changes', async () => {
     const c = chat();
     await c.say('Delhi');
+    await c.say(SKIP);
     expect((await c.say('No one sensitive')).reply).not.toContain('Air in');
     c.setAir({ ...baseAir, aqi: 230, band: 'poor' });
     const t = await c.say('Metro');
@@ -119,22 +131,26 @@ describe('no-key conversation', () => {
     const a = chat();
     const b = chat();
     expect((await a.say('Delhi')).reply).toBe((await b.say('Delhi')).reply);
-    expect((await a.say('Child at home')).reply).toMatch(/^Noted: a child\./);
-    expect((await a.say('Elder with asthma')).reply).toMatch(/^Thanks, I have noted an elder/);
+    await a.say(SKIP);
+    expect((await a.say('Child at home')).reply).toMatch(/^Thanks, I have noted a child\./);
+    expect((await a.say('Elder with asthma')).reply).toMatch(
+      /^Thanks, I have noted an elder with asthma\./,
+    );
   });
 
   it('gives a Devanagari conversational turn', async () => {
-    const t = await chat().say('Delhi', 'hi');
-    expect(t.reply).toMatch(/[ऀ-ॿ]/);
-    expect(t.reply).toContain('177');
-    expect(t.reply).toContain('Open-Meteo');
-    expect(t.chips[0]).toBe('कोई संवेदनशील नहीं');
+    const turn = await chat().say('Delhi', 'hi');
+    expect(turn.reply).toMatch(/[ऀ-ॿ]/);
+    expect(turn.reply).toContain('177');
+    expect(turn.reply).toContain('Open-Meteo');
+    expect(turn.chips[0]).toBe(t('chip.skipArea', {}, 'hi'));
   });
 
   it('never states a number outside the turn data', async () => {
     const c = chat();
     const turns = [
       await c.say('Delhi'),
+      await c.say(SKIP),
       await c.say('Child at home'),
       await c.say('Bus'),
       await c.say('Playing outdoors'),

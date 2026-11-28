@@ -40,18 +40,20 @@ const MODES: [RegExp, TravelMode][] = [
   [/\bbus\b|बस/i, 'bus'],
   [/two[- ]?wheeler|\b(?:bike|scooter)\b|दोपहिया/i, 'twoWheeler'],
   [/\bcycl(?:e|es|ing)\b|साइकिल/i, 'cycle'],
-  [/\bwalk\b|टहल/i, 'walk'],
+  // Walking is travel only when it goes somewhere ("walk to office"); "an evening walk" is an outing.
+  [/^walk$|\bwalk(?:s|ing)? to\b|पैदल/i, 'walk'],
 ];
-// "Stroll" and "play" avoid the word "walk", which already means a walking commute above.
 const OUTDOORS: [RegExp, ActivityKind][] = [
-  [/\bstroll|सैर/i, 'walk'],
+  [/\bstroll|\bwalk|\bjog|exercise|\bpark\b|सैर|टहल/i, 'walk'],
   [/\bplay|खेल/i, 'play'],
   [/school ?run|स्कूल/i, 'schoolRun'],
 ];
 const isTrip = (a: Activity) => a.kind === 'commute' || a.kind === 'schoolRun';
 const NO_ONE = /\bno ?one\b|\bnobody\b|कोई.*नहीं/i;
-const CHILD = /\bchild|\bkid|बच्च/i;
-const ELDER = /\belder|\bold (?:man|woman|person)|बुज़ुर्ग|बुजुर्ग|दादा|दादी/i;
+const CHILD = /\bchild|\bkid|\bson\b|\bdaughter|\bbaby|\btoddler|बच्च|बेटा|बेटी/i;
+// Parents and grandparents of the person typing count as elders: the cautious choice.
+const ELDER =
+  /\belder|\bold (?:man|woman|person)|\bgrand|\b(?:mom|mum|mother|dad|father|parents|in-laws|nani|nana|dadi|dada)\b|बुज़ुर्ग|बुजुर्ग|दादा|दादी|नाना|नानी|माँ|पापा|पिता/i;
 const ASTHMA = /asthma|अस्थमा/i;
 
 const adult: Member = { group: 'adult', respiratory: false, pregnant: false };
@@ -76,23 +78,31 @@ export function parseQuick(text: string, profile: Profile): Partial<Profile> {
 
   if (NO_ONE.test(text)) return { household: [adult] };
 
-  const asthma = ASTHMA.test(text);
-  const child = CHILD.test(text);
-  const elder = ELDER.test(text) || (asthma && !child);
-  if (child || elder) {
-    let members = profile.household;
+  // Clause by clause, so in "mom has asthma and my son is 6" the asthma stays with mom.
+  let members = profile.household;
+  let found = false;
+  for (const part of text.split(/,|;|\.\s|।|\band\b|और/i)) {
+    const asthma = ASTHMA.test(part);
+    const child = CHILD.test(part);
+    const elder = ELDER.test(part) || (asthma && !child);
     if (child) members = withMember(members, 'child', asthma);
     if (elder) members = withMember(members, 'elderly', asthma);
+    found ||= child || elder;
+  }
+  if (found) {
     out.household = members.some((m) => m.group === 'adult') ? members : [adult, ...members];
   }
 
   let activities = profile.activities;
+  const mode = MODES.find(([re]) => re.test(text))?.[1];
   const outdoor = OUTDOORS.filter(
-    ([re, kind]) => re.test(text) && !activities.some((a) => a.kind === kind),
+    ([re, kind]) =>
+      re.test(text) &&
+      !(kind === 'walk' && mode === 'walk') &&
+      !activities.some((a) => a.kind === kind),
   ).map(([, kind]): Activity => ({ kind, durationMin: 30, participants: [0], flexible: true }));
   if (outdoor.length > 0) out.activities = activities = [...activities, ...outdoor];
 
-  const mode = MODES.find(([re]) => re.test(text))?.[1];
   if (mode) {
     const trips = activities.some(isTrip) ? activities : [...activities, DEFAULT_COMMUTE];
     out.activities = trips.map((a) => (isTrip(a) ? { ...a, mode } : a));

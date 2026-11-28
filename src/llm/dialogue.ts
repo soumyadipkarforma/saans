@@ -88,10 +88,13 @@ export function nextStep(i: {
   turns: number;
   profile: Profile;
   prev: AssistantTurn | null;
+  // True on the turn a new city was set: Saans then asks which part of it, once.
+  askArea?: boolean;
 }): { text: string; chips: string[] } {
-  const { lang, turns, profile, prev } = i;
+  const { lang, turns, profile, prev, askArea = false } = i;
   const asked = prev?.chips.some((c) => isChip('chip.noOutdoors', c)) ?? false;
   const slots: [boolean, string, string[]][] = [
+    [askArea && profile.location?.area === undefined, 'ask.area', ['chip.skipArea']],
     [profile.household.length === 0, 'ask.household', HOUSEHOLD_CHIPS],
     [!profile.activities.some((a) => a.mode), 'ask.travel', TRAVEL_CHIPS],
     [
@@ -103,6 +106,9 @@ export function nextStep(i: {
   const missing = slots.find(([m]) => m);
   const chips = (keys: string[]) => keys.map((k) => t(k, {}, lang));
   return missing
-    ? { text: pick(lang, missing[1], turns), chips: chips(missing[2]) }
+    ? {
+        text: pick(lang, missing[1], turns, { city: profile.location?.city ?? '' }),
+        chips: chips(missing[2]),
+      }
     : { text: t('dialogue.ready', {}, lang), chips: chips(FOLLOW_UP_CHIPS) };
 }

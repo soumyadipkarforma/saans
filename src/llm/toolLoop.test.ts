@@ -16,6 +16,10 @@ const places: Record<string, Location[]> = {
   Delhi: [delhi],
   Mumbai: [mumbai],
   Aurangabad: [auMh, auBr],
+  Nagar: [
+    { city: 'Nagar Haveli', state: 'Dadra', lat: 20.1, lon: 73 },
+    { city: 'Nagar Kurnool', state: 'Telangana', lat: 16.5, lon: 78.3 },
+  ],
 };
 const geocode = vi.fn((q: string) => Promise.resolve(places[q] ?? []));
 
@@ -106,15 +110,19 @@ describe('createGeminiAssistant', () => {
     expect(turn.plan).not.toBeNull();
   });
 
-  it('asks the user to choose when a city is ambiguous, without keeping old data', async () => {
-    const { llm } = scripted([
-      call('update_profile', { place: 'Aurangabad' }),
-      call('get_air_quality'),
-    ]);
-    const turn = await make(llm)({ messages: user('Aurangabad'), ...base() });
+  it('asks the user to choose when a place name matches several cities, without keeping old data', async () => {
+    const { llm } = scripted([call('update_profile', { place: 'Nagar' }), call('get_air_quality')]);
+    const turn = await make(llm)({ messages: user('Nagar'), ...base() });
     expect(turn.candidates).toHaveLength(2);
-    expect(turn.chips).toEqual(['Aurangabad, Maharashtra', 'Aurangabad, Bihar']);
+    expect(turn.chips).toEqual(['Nagar Haveli, Dadra', 'Nagar Kurnool, Telangana']);
     expect(turn.air).toBeNull();
+  });
+
+  it('picks the first of two cities that share an exact name', async () => {
+    const { llm } = scripted([call('update_profile', { place: 'Aurangabad' })]);
+    const turn = await make(llm)({ messages: user('Aurangabad'), ...base() });
+    expect(turn.candidates).toEqual([]);
+    expect(turn.profile.location).toEqual(auMh);
   });
 
   it('switching city drops the old reading and ignores coordinates from the model', async () => {
@@ -284,7 +292,7 @@ describe('hardening', () => {
       activities: [{ kind: 'commute', mode: 'bus', participants: [0], flexible: false }],
     });
     expect(prompt).toContain(
-      'Already known: city Delhi; household child with a lung condition; activities commute by bus.',
+      'Already known: city Delhi; area not asked yet; household child with a lung condition; activities commute by bus.',
     );
     expect(prompt).not.toContain('8');
   });

@@ -14,6 +14,7 @@ import { searchIndia } from './data/geocode';
 import { t, useLang, useT } from './i18n/i18n';
 import { KeyDialog } from './key/KeyDialog';
 import { keyStore } from './key/keyStore';
+import { placeName } from './llm/area';
 import { createAssistant } from './llm/assistant';
 import { AqiCard, type AirStatus } from './plan/AqiCard';
 import { MicButton } from './speech/MicButton';
@@ -23,8 +24,7 @@ import { LocationSchema, type ChatMessage } from './types';
 // The plan screen is only needed once the plan column is shown, so it loads on demand.
 const PlanView = lazy(() => import('./plan/PlanView'));
 
-// placeholder: replace with the repository URL before launch
-const REPO_URL = 'https://github.com/';
+const REPO_URL = 'https://github.com/soumyadipkarforma/saans';
 const airService = createAirService();
 const LANGS = ['en', 'hi'] as const;
 
@@ -69,7 +69,7 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
       }),
     [injected],
   );
-  const { messages, profile, turn, lastGood, turnAt, status, send, setProfile, reset } =
+  const { messages, profile, turn, lastGood, turnAt, status, send, setProfile, reset, greet } =
     useConversation(assistant);
   const thinking = status === 'thinking';
   const speech = useSpeech((text) => void send(text));
@@ -111,6 +111,7 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
     reset();
     run([
       { kind: 'say', text: f.placeLabel },
+      { kind: 'say', text: f.area, wait: true },
       { kind: 'profile', apply: (p) => ({ ...p, ...f.profile }) },
       ...f.script.map((text) => ({ kind: 'say' as const, text, wait: true })),
     ]);
@@ -123,6 +124,8 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
         // The schema's India bounding box is the single place that decides "in India".
         const location = LocationSchema.safeParse({
           city: t('loc.yours'),
+          // GPS is already precise, so Saans does not ask which part of the city.
+          area: '',
           lat: coords.latitude,
           lon: coords.longitude,
         });
@@ -182,7 +185,13 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
             </p>
           )}
           <Chips items={turn?.chips ?? []} onPick={pick} />
-          <MicButton speech={speech} />
+          <MicButton
+            speech={speech}
+            thinking={thinking}
+            onStart={() =>
+              speech.startLive(messages.length === 0 ? () => greet(t('reply.greet')) : undefined)
+            }
+          />
           <ChatInput onSend={say} busy={thinking} fill={fill} />
           <DemoPicker onPick={startDemo} disabled={running || thinking} />
           {running && <p role="status">{tr('demo.playing')}</p>}
@@ -197,7 +206,7 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
             air={shown?.air ?? null}
             status={airStatus}
             now={turnAt}
-            city={shown?.profile.location?.city}
+            city={shown?.profile.location && placeName(shown.profile.location)}
           />
           {shown?.plan && (
             <Suspense fallback={<p>{tr('plan.loading')}</p>}>

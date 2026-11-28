@@ -11,7 +11,7 @@ Entry for Hack2skill PromptWars Virtual, Challenge 6 ("Urban Air Quality Assista
 | Brief requirement              | Saans feature                                                                                                    |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | Families and communities       | Household profile gathered by conversation: children, elders, anyone with asthma or breathing trouble, commuters |
-| Tailored to location           | Live AQI for the user's city or area (any Indian city), by voice, typing, or browser geolocation                 |
+| Tailored to location           | Live AQI for the user's city and the exact area inside it (Dwarka, Delhi), by voice, typing, or geolocation    |
 | Low-emission daily routines    | Today's plan in morning / afternoon / evening blocks: when to go out, when to stay in, how to travel             |
 | Indoor air quality hacks       | At home card: when to open or close windows, purifier timing, cooking and incense tips, tied to forecast hours   |
 | Sustainable alternatives       | Swaps: metro or bus instead of cab, carpooling, combining trips, walking short hops in cleaner hours             |
@@ -98,13 +98,14 @@ Requires Node 22 or later (see `.nvmrc`).
 
 ## Try it in 30 seconds
 
-1. Open the live app and tap **Try a demo family** → **Sharma family, Delhi**. No key needed; it uses live air data.
-2. Or type a sentence, for example:
+1. Open the live app in Chrome, tap **Start live conversation**, then just answer when Saans asks. No key needed; it uses live air data.
+2. Or tap **Try a demo family** → **Sharma family, Delhi** to watch a whole conversation play out.
+3. Or type a sentence, for example:
    - "I live in Pune, I cycle to college and my dad has asthma"
    - "I live in Delhi, I drive 12 km to office and my son is 8"
    - "मैं लखनऊ में रहता हूँ, सुबह पार्क में टहलता हूँ"
-3. Tap the follow-up chips: "Can my child play outside at 5?", "What if I work from home?", "Explain the AQI".
-4. Optional: tap **AI: off** and paste your own Gemini key to let Gemini hold the conversation.
+4. Tap the follow-up chips: "Can my child play outside at 5?", "What if I work from home?", "Explain the AQI".
+5. Optional: tap **AI: off** and paste your own Gemini key to let Gemini hold the conversation.
 
 ## Deployment
 
@@ -115,6 +116,18 @@ Every push to `main` runs `.github/workflows/deploy.yml`: lint, type-check, test
 - Design spec: [docs/superpowers/specs/2026-11-20-saans-design.md](docs/superpowers/specs/2026-11-20-saans-design.md)
 - Build plan: [docs/superpowers/plans/2026-11-20-saans-plan.md](docs/superpowers/plans/2026-11-20-saans-plan.md)
 - Engine and its numbers: [docs/engine.md](docs/engine.md)
+
+## Live mode
+
+Tap **Start live conversation** and talk to Saans like a phone call, with no more tapping:
+
+1. Saans says hello and asks which city you are in.
+2. You say "Delhi". It picks the capital (say "Delhi, Madhya Pradesh" if you meant another one) and asks **which part of Delhi** you live in.
+3. You say "Dwarka". Saans finds Dwarka on the map near Delhi, not the Dwarka in Gujarat, and switches to the air reading right over that area.
+4. It asks about your family ("Who's at home with you? Any kids, elders, or anyone with asthma?"), then how you travel, then what you plan to do today.
+5. Your plan appears, and you can keep asking questions out loud.
+
+The orb shows whose turn it is: listening, thinking or speaking. Tap it to interrupt Saans mid-sentence, or to pause the mic. **End live** stops the loop. If nobody speaks for two rounds, the mic pauses itself. Typing and the chips keep working the whole time.
 
 ## Voice
 

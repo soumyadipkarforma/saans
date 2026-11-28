@@ -87,6 +87,11 @@ export function useConversation(assistant: Assistant) {
     [assistant, lang, messages, profile, setProfile, turn],
   );
 
+  // Live mode opens with Saans speaking first; only on an empty chat.
+  const greet = useCallback((text: string) => {
+    setMessages((m) => (m.length === 0 ? [{ role: 'model', text }] : m));
+  }, []);
+
   const reset = useCallback(() => {
     setMessages([]);
     setTurn(null);
@@ -95,5 +100,5 @@ export function useConversation(assistant: Assistant) {
     saveProfile(null);
   }, []);
 
-  return { messages, profile, turn, lastGood, turnAt, status, send, setProfile, reset };
+  return { messages, profile, turn, lastGood, turnAt, status, send, setProfile, reset, greet };
 }

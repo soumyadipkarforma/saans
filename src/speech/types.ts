@@ -13,7 +13,8 @@ export interface SpeechInput {
 
 export interface SpeechOutput {
   isSupported(): boolean;
-  speak(text: string, lang: Lang): void;
+  // onEnd runs once when this utterance finishes or fails, not when a newer one replaces it.
+  speak(text: string, lang: Lang, onEnd?: () => void): void;
   cancel(): void;
 }
 

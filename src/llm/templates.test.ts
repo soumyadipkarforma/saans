@@ -77,7 +77,8 @@ describe('parseQuick', () => {
       respiratory: true,
     });
     expect(parseQuick('asthma', empty).household?.[1]?.respiratory).toBe(true);
-    expect(parseQuick('child with asthma', empty).household?.[1]).toMatchObject({
+    // "with" now separates clauses, so the asthma must sit in the same clause as the child.
+    expect(parseQuick('my child has asthma', empty).household?.[1]).toMatchObject({
       group: 'child',
       respiratory: true,
     });

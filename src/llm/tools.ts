@@ -15,7 +15,11 @@ export const toolDeclarations = [
     parametersJsonSchema: {
       type: 'object',
       properties: {
-        place: { ...str, description: 'City or area name exactly as the user wrote it' },
+        place: { ...str, description: 'City name exactly as the user wrote it' },
+        area: {
+          ...str,
+          description: 'Neighbourhood or locality inside the city, exactly as the user said it',
+        },
         household: {
           type: 'array',
           items: {
@@ -81,6 +85,7 @@ export const toolDeclarations = [
 
 export const UpdateProfileArgs = z.object({
   place: z.string().optional(),
+  area: z.string().max(80).optional(),
   household: z
     .array(
       z.object({

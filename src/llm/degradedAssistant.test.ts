@@ -30,6 +30,11 @@ const places: Record<string, Location[]> = {
   Delhi: [delhi],
   Mumbai: [mumbai],
   Aurangabad: [aurMh, aurBr],
+  // No exact-name match, so several results mean the user has to choose.
+  Nagar: [
+    { city: 'Nagar Haveli', state: 'Dadra', lat: 20.1, lon: 73 },
+    { city: 'Nagar Kurnool', state: 'Telangana', lat: 16.5, lon: 78.3 },
+  ],
 };
 
 const air: AirReading = {
@@ -80,20 +85,29 @@ describe('degraded assistant', () => {
     expect(turn.profile.location?.city).toBe('Delhi');
   });
 
-  it('with a location but no household still builds a plan and asks via chips', async () => {
+  it('with a location but no household still builds a plan and asks the area first', async () => {
     const { ask } = setup();
     const turn = await ask('Delhi');
     expect(turn.plan?.indoorAirTips.length).toBeGreaterThan(0);
-    expect(turn.chips).toEqual(['No one sensitive', 'Child at home', 'Elder with asthma']);
+    expect(turn.reply).toContain('Which part of Delhi do you live in?');
+    expect(turn.chips).toEqual([t('chip.skipArea', {}, 'en')]);
     expect(turn.profile.household).toEqual([]);
   });
 
-  it('an ambiguous name returns candidates as chips and no plan', async () => {
+  it('a partial name with several matches returns candidates as chips and no plan', async () => {
+    const { ask } = setup();
+    const turn = await ask('Nagar');
+    expect(turn.candidates).toHaveLength(2);
+    expect(turn.chips).toEqual(['Nagar Haveli, Dadra', 'Nagar Kurnool, Telangana']);
+    expect(turn.plan).toBeNull();
+  });
+
+  it('an exact city name shared by two places picks the first one', async () => {
     const { ask } = setup();
     const turn = await ask('Aurangabad');
-    expect(turn.candidates).toHaveLength(2);
-    expect(turn.chips).toEqual(['Aurangabad, Maharashtra', 'Aurangabad, Bihar']);
-    expect(turn.plan).toBeNull();
+    expect(turn.candidates).toEqual([]);
+    expect(turn.profile.location).toEqual(aurMh);
+    expect(turn.plan).not.toBeNull();
   });
 
   it('selects the single exact city name over look-alikes', async () => {
@@ -104,11 +118,11 @@ describe('degraded assistant', () => {
     expect(turn.air).not.toBeNull();
   });
 
-  it('still asks when two cities share the exact name', async () => {
+  it('takes the first of two cities that share the exact name', async () => {
     const { ask } = setup();
     const turn = await ask('Twin');
-    expect(turn.candidates).toHaveLength(2);
-    expect(turn.chips).toEqual(['Twin, Goa', 'Twin, Assam']);
+    expect(turn.candidates).toEqual([]);
+    expect(turn.profile.location).toEqual(twinA);
   });
 
   it('a "City, State" chip pick resolves to that candidate', async () => {
@@ -145,7 +159,7 @@ describe('degraded assistant', () => {
     const turn = await ask('Delhi', empty, 'hi');
     expect(turn.reply).toMatch(/[ऀ-ॿ]/);
     expect(turn.reply).toContain('223');
-    expect(turn.chips[0]).toBe('कोई संवेदनशील नहीं');
+    expect(turn.chips[0]).toBe(t('chip.skipArea', {}, 'hi'));
   });
 
   it('naming a new city replaces the location instead of keeping the old data', async () => {
@@ -199,7 +213,7 @@ describe('degraded assistant', () => {
   it('with a city set, free text keeps the plan and hints how to change city', async () => {
     const { ask } = setup();
     const full = { location: delhi, household: [adult], activities: [commute] };
-    for (const text of ['thanks', 'my grandmother is 70']) {
+    for (const text of ['thanks', 'that helps a lot']) {
       const turn = await ask(text, full);
       expect(turn.plan).not.toBeNull();
       expect(turn.profile.location).toEqual(delhi);

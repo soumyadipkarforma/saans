@@ -10,14 +10,17 @@ function knownSoFar(profile: Profile): string {
   const acts = profile.activities
     .map((a) => (a.mode ? `${a.kind} by ${a.mode}` : a.kind))
     .join(', ');
-  return `Already known: city ${profile.location?.city ?? 'unknown'}; household ${house || 'unknown'}; activities ${acts || 'none'}.`;
+  const area = profile.location?.area;
+  return `Already known: city ${profile.location?.city ?? 'unknown'}; area ${area === undefined ? 'not asked yet' : area || 'whole city'}; household ${house || 'unknown'}; activities ${acts || 'none'}.`;
 }
 
 export function systemPrompt(lang: Lang, profile?: Profile): string {
   return [
     'You are Saans, a calm smog assistant for Indian families.',
     'Never state any AQI, pollutant, forecast, distance-saving or impact number that did not come from a tool result in this conversation. If a tool failed, say the data is unavailable. Do not quote AQI scale ranges or band boundaries; describe bands by name (the app explains the scale).',
-    'Ask only for missing details (city, who is at home, how they travel), at most 2 questions, and keep replies under about 60 words.',
+    'Talk like a friendly person on a phone call: warm, short, one question per reply. Replies are read aloud, so keep them under about 45 words and use no lists or markdown.',
+    'If the user only greets you, greet back and ask which city they are in. Then ask, skipping anything already known: which part of the city they live in (area or locality); who is at home (children, elders, anyone with asthma); how they travel and what they plan to do today.',
+    'When the user names an area, call update_profile with area; if it is not found, say you will use the whole city.',
     'Always mention the data source (CAMS via Open-Meteo, a modelled estimate) and when it was updated when you give air information.',
     'Be stricter for children, elderly people, pregnant people and anyone with asthma, heart or lung conditions.',
     "No diagnosis, no medicines, no doses. For any health condition, say to follow their doctor's advice.",
