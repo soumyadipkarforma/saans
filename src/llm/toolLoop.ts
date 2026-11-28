@@ -206,6 +206,7 @@ export function createGeminiAssistant(deps: {
 
     const contents: unknown[] = messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
     const tools = [{ functionDeclarations: toolDeclarations }];
+    let retried = false;
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       if (signal.aborted) throw new LlmError('geminiDown');
       const res = await deps.llm.generate({
@@ -224,8 +225,21 @@ export function createGeminiAssistant(deps: {
           readings(shown),
         );
         if (!guard.guarded) return turn({ reply: res.text });
-        // A number no tool produced: swap in the template (the cards still show real data).
-        return fallback(true);
+        // A number no tool produced: ask Gemini once to say it in words, then fall back to the template.
+        if (retried) return fallback(true);
+        retried = true;
+        contents.push(
+          { role: 'model', parts: [{ text: res.text }] },
+          {
+            role: 'user',
+            parts: [
+              {
+                text: 'System check: that reply stated a number that did not come from a tool result in this conversation, or put a reading on the wrong pollutant. Rewrite the same answer without that number (describe it in words, or call a tool first). Do not mention this check.',
+              },
+            ],
+          },
+        );
+        continue;
       }
       contents.push(
         res.modelContent ?? {

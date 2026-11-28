@@ -20,8 +20,16 @@ const LANGS: Lang[] = ['en', 'hi'];
 const PLAY_HOUR = 17;
 
 // Chip phrases match in both languages so a language switch never turns one into a search.
+// The same questions typed in other words.
+const TYPED: [RegExp, FollowUpKind][] = [
+  [/work(?:ing)? from home|\bwfh\b|घर से काम/i, 'workFromHome'],
+  [/\bplay\b.*\b(?:5|five|evening)\b|खेल.*(?:5|पाँच|शाम)|(?:5|पाँच|शाम).*खेल/i, 'playAt5'],
+  [/explain.*aqi|what (?:is|does) (?:the |an )?aqi|aqi mean|एक्यूआई.*(?:क्या|समझा)/i, 'explainAqi'],
+];
+
 export function followUpKind(text: string): FollowUpKind | null {
-  return KINDS.find((k) => LANGS.some((l) => text === t(CHIP_KEYS[k], {}, l))) ?? null;
+  const chip = KINDS.find((k) => LANGS.some((l) => text === t(CHIP_KEYS[k], {}, l)));
+  return chip ?? TYPED.find(([re]) => re.test(text))?.[1] ?? null;
 }
 
 export interface FollowUpContext {

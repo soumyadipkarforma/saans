@@ -210,14 +210,16 @@ describe('degraded assistant', () => {
     expect(getAirFn).toHaveBeenCalledTimes(1);
   });
 
-  it('with a city set, free text keeps the plan and hints how to change city', async () => {
+  it('with a city set, free text keeps the plan: thanks is answered, anything else is admitted', async () => {
     const { ask } = setup();
     const full = { location: delhi, household: [adult], activities: [commute] };
-    for (const text of ['thanks', 'that helps a lot']) {
-      const turn = await ask(text, full);
+    const thanks = await ask('thanks', full);
+    expect(thanks.reply).toContain("You're welcome");
+    const lost = await ask('that helps a lot', full);
+    expect(lost.reply).toContain("Sorry, I didn't catch that.");
+    for (const turn of [thanks, lost]) {
       expect(turn.plan).not.toBeNull();
       expect(turn.profile.location).toEqual(delhi);
-      expect(turn.reply).toContain('To change city, type its name.');
     }
   });
 

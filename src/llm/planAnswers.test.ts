@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { questionKind } from './questions';
 import { DEMO_FAMILIES } from '../demo/families';
 import type { DayPlan, Profile, Swap } from '../types';
 import { answerPlanIntent, planIntent } from './planAnswers';
@@ -58,7 +59,8 @@ describe('planIntent', () => {
   ])('%s', (text, expected) => expect(planIntent(text)).toBe(expected));
 
   it('every demo script question is answered by code', () => {
-    for (const f of DEMO_FAMILIES) for (const q of f.script) expect(planIntent(q)).not.toBeNull();
+    for (const f of DEMO_FAMILIES)
+      for (const q of f.script) expect(planIntent(q) ?? questionKind(q)).not.toBeNull();
   });
 });
 

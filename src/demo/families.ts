@@ -48,7 +48,11 @@ export const DEMO_FAMILIES: DemoFamily[] = [
         },
       ],
     },
-    script: ['What does today look like for my family?', 'Which swap would help us the most?'],
+    script: [
+      'What does today look like for my family?',
+      'Which swap would help us the most?',
+      'Should grandma wear a mask today?',
+    ],
   },
   {
     id: 'iyer',
@@ -70,7 +74,11 @@ export const DEMO_FAMILIES: DemoFamily[] = [
         { kind: 'exercise', label: 'jog', startHour: 18, participants: [0, 1], flexible: true },
       ],
     },
-    script: ['What does today look like for us?', 'When is the best time for our evening jog?'],
+    script: [
+      'What does today look like for us?',
+      'When is the best time for our evening jog?',
+      'What about tomorrow?',
+    ],
   },
   {
     id: 'das',
@@ -92,6 +100,10 @@ export const DEMO_FAMILIES: DemoFamily[] = [
         },
       ],
     },
-    script: ['What does today look like for us?', 'When should we go for our morning walk?'],
+    script: [
+      'What does today look like for us?',
+      'When should we go for our morning walk?',
+      'When should we open the windows?',
+    ],
   },
 ];

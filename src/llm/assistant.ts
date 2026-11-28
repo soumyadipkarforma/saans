@@ -43,7 +43,10 @@ export function createAssistant(deps: {
     }
     sent.push(at);
     try {
-      return await createGeminiAssistant({ llm: makeLlm(key), geocode, air })(input);
+      const turn = await createGeminiAssistant({ llm: makeLlm(key), geocode, air })(input);
+      // Gemini's words failed the number guard twice: the code-built answer is better than a bare template.
+      if (turn.guarded) return { ...(await degraded(input)), guarded: true };
+      return turn;
     } catch (e) {
       const notice = e instanceof LlmError ? e.code : 'geminiDown';
       if (notice === 'keyInvalid') {

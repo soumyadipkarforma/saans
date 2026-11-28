@@ -98,14 +98,34 @@ Requires Node 22 or later (see `.nvmrc`).
 
 ## Try it in 30 seconds
 
-1. Open the live app in Chrome, tap **Start live conversation**, then just answer when Saans asks. No key needed; it uses live air data.
-2. Or tap **Try a demo family** → **Sharma family, Delhi** to watch a whole conversation play out.
-3. Or type a sentence, for example:
-   - "I live in Pune, I cycle to college and my dad has asthma"
-   - "I live in Delhi, I drive 12 km to office and my son is 8"
-   - "मैं लखनऊ में रहता हूँ, सुबह पार्क में टहलता हूँ"
-4. Tap the follow-up chips: "Can my child play outside at 5?", "What if I work from home?", "Explain the AQI".
+1. Open the live app and tap **Try a demo family** → **Sharma family, Delhi**. No key needed; it uses live air data and plays a whole conversation, ending with "Should grandma wear a mask today?".
+2. Then ask your own questions in plain words, for example:
+   - "Is it safe to go for a run?"
+   - "Do I need a mask?" / "Should I get an air purifier?"
+   - "What about tomorrow?" / "When should I open the windows?"
+   - "Why is the air so bad?" / "What if I work from home?"
+3. Or start fresh and type a sentence: "I live in Pune, I cycle to college and my dad has asthma".
+4. Prefer talking? Tap **Talk instead (hands-free)** in Chrome.
 5. Optional: tap **AI: off** and paste your own Gemini key to let Gemini hold the conversation.
+
+## What it can answer without a key
+
+Every answer below is built in code from the live reading, the forecast and the engine, so the numbers are always real:
+
+| You ask | Saans answers with |
+| --- | --- |
+| Is it safe to go out / for a run? | Yes, or the cleanest hour left today, judged against a stricter limit if anyone at home is sensitive; runners are told how much more smog hard exercise pulls in |
+| Do I need a mask? | By band: no, N95 for sensitive people, or N95 for everyone, with how much a good N95 cuts |
+| What about tomorrow? | Tomorrow's cleanest and worst hours from the forecast |
+| When should I open the windows? | The forecast's cleanest window to air out and the hours to keep shut |
+| Air purifier? Why is the air bad? | Practical, band-aware advice and a plain explanation of winter smog |
+| Coughing, breathless, chest pain | No medical advice: get help right away if severe, follow your doctor otherwise |
+
+With a Gemini key, Gemini answers in its own words. If it states a number no tool produced, it is asked once to rephrase; if it does it again, the code-built answer above replaces it.
+
+## Quality checks
+
+Lighthouse (production build, desktop): Performance 99, Accessibility 100, Best Practices 100, SEO 91 (the only SEO miss is `robots.txt`, which GitHub Pages serves from the user site root, not the project). axe-core finds no WCAG 2.1 AA violations before or after a demo conversation.
 
 ## Deployment
 
@@ -117,9 +137,9 @@ Every push to `main` runs `.github/workflows/deploy.yml`: lint, type-check, test
 - Build plan: [docs/superpowers/plans/2026-11-20-saans-plan.md](docs/superpowers/plans/2026-11-20-saans-plan.md)
 - Engine and its numbers: [docs/engine.md](docs/engine.md)
 
-## Live mode
+## Hands-free mode
 
-Tap **Start live conversation** and talk to Saans like a phone call, with no more tapping:
+Tap **Talk instead (hands-free)** and talk to Saans like a phone call, with no more tapping:
 
 1. Saans says hello and asks which city you are in.
 2. You say "Delhi". It picks the capital (say "Delhi, Madhya Pradesh" if you meant another one) and asks **which part of Delhi** you live in.

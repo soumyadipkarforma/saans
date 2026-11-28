@@ -10,6 +10,7 @@ import { acknowledge, airLine, isChip, nextStep } from './dialogue';
 import { answerFollowUp, followUpKind } from './followUps';
 import { placeCandidates } from './places';
 import { answerPlanIntent, planIntent } from './planAnswers';
+import { answerQuestion, questionKind } from './questions';
 import { chipsFor, FOLLOW_UP_CHIPS, parseQuick } from './templates';
 
 type AirService = ReturnType<typeof createAirService>;
@@ -50,7 +51,10 @@ export function createDegradedAssistant(deps: {
     const kind = followUpKind(text);
     const intent = planIntent(text);
     const followUp = kind !== null || isChip('chip.noOutdoors', text);
-    const quick = kind || intent ? {} : parseQuick(text, profile);
+    const question = kind || intent ? null : questionKind(text);
+    // A question can still name a person ("is it safe for my dad?") but never adds an activity.
+    const parsed = kind || intent ? {} : parseQuick(text, profile);
+    const quick = question ? (parsed.household ? { household: parsed.household } : {}) : parsed;
     const hasQuick = Object.keys(quick).length > 0;
     let next: Profile = { ...profile, ...quick };
     const say = (key: string) => t(key, {}, lang);
@@ -102,7 +106,8 @@ export function createDegradedAssistant(deps: {
     const words = text.split(/\s+/).length;
     const labelLike =
       text.includes(',') && (text.split(',')[0] ?? '').trim().split(/\s+/).length <= 3;
-    const bare = text.length <= MAX_PLACE_CHARS && ((words <= 3 && !hasQuick) || labelLike);
+    const bare =
+      !question && text.length <= MAX_PLACE_CHARS && ((words <= 3 && !hasQuick) || labelLike);
     const tries: [string, boolean][] = [
       ...placeCandidates(text).map((c): [string, boolean] => [c, true]),
     ];
@@ -188,9 +193,61 @@ export function createDegradedAssistant(deps: {
       // A sentence can give a city and more; the city clause comes first, then what else was understood.
       const cityNew = next.location !== profile.location;
       const step = nextStep({ lang, turns, profile: next, prev, askArea: cityNew });
+      const ready = step.text === t('dialogue.ready', {}, lang);
+      if (question) {
+        const answer = answerQuestion(question, {
+          lang,
+          city: placeName(location),
+          air,
+          forecast,
+          plan,
+          text,
+          now: istNow(now),
+        });
+        // Answer first, then keep the conversation going with whatever is still missing.
+        const more = !ready && !cityNew ? ` ${step.text}` : '';
+        const lead = cityNew
+          ? `${airLine(lang, air, placeName(location), now, null, location)} `
+          : '';
+        return turn({
+          reply: `${lead}${answer}${more}`,
+          chips: ready ? FOLLOW_UP_CHIPS.map(say) : step.chips,
+          air,
+          forecast,
+          plan,
+        });
+      }
+      // Nothing understood after the plan is ready: say so and show what can be asked.
+      if (
+        ready &&
+        !hasQuick &&
+        !cityNew &&
+        !areaAck &&
+        !greeting &&
+        prev?.plan &&
+        !isChip('chip.noOutdoors', text)
+      ) {
+        return turn({
+          reply: `${say('q.didntCatch')}${hint}`,
+          chips: FOLLOW_UP_CHIPS.map(say),
+          air,
+          forecast,
+          plan,
+        });
+      }
+      const ack = areaAck || acknowledge({ lang, turns, text, before: profile, after: next });
+      // Free text that changed nothing: say so plainly rather than hint at a city change.
+      const lost =
+        text !== '' &&
+        !ack &&
+        !hasQuick &&
+        !cityNew &&
+        !greeting &&
+        !isChip('chip.noOutdoors', text);
+      if (lost) hint = '';
       const parts = [
         greeting ? say('reply.greetBack') : '',
-        areaAck || acknowledge({ lang, turns, text, before: profile, after: next }),
+        lost ? say('q.notUnderstood') : ack,
         cityNew && hasQuick
           ? acknowledge({
               lang,

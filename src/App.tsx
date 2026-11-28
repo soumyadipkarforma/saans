@@ -185,6 +185,8 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
             </p>
           )}
           <Chips items={turn?.chips ?? []} onPick={pick} />
+
+          <ChatInput onSend={say} busy={thinking} fill={fill} />
           <MicButton
             speech={speech}
             thinking={thinking}
@@ -192,7 +194,6 @@ export function App({ assistant: injected }: { assistant?: Assistant }) {
               speech.startLive(messages.length === 0 ? () => greet(t('reply.greet')) : undefined)
             }
           />
-          <ChatInput onSend={say} busy={thinking} fill={fill} />
           <DemoPicker onPick={startDemo} disabled={running || thinking} />
           {running && <p role="status">{tr('demo.playing')}</p>}
           <TrySaying onPick={(text) => setFill({ text })} />

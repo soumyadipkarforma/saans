@@ -87,7 +87,7 @@ describe('mic UI', () => {
     installSpeech();
     const user = userEvent.setup();
     render(<App assistant={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Start live conversation' }));
+    await user.click(screen.getByRole('button', { name: 'Talk instead (hands-free)' }));
     expect(synth.speak).toHaveBeenCalledTimes(1);
     expect(lastUtterance().text).toBe(t('reply.greet', {}, 'en'));
     expect(FakeRecognition.last).toBeNull();
@@ -124,7 +124,7 @@ describe('mic UI', () => {
     await startLive(user);
     await user.click(screen.getByRole('button', { name: 'End live' }));
     expect(FakeRecognition.last?.stop).toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Start live conversation' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Talk instead (hands-free)' })).toBeInTheDocument();
   });
 
   it('starts recognition in hi-IN when the page is in Hindi', async () => {

@@ -39,7 +39,6 @@ export function MicButton({
             <span aria-hidden="true" className={styles.dot} />
             {tr('live.start')}
           </button>
-          <p className={styles.hint}>{tr('live.hint')}</p>
         </>
       )}
       {micSupported && live && (
